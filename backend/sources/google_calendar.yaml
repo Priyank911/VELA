@@ -1,0 +1,23 @@
+name: google_calendar
+type: jsonl
+description: Google Calendar events
+path: ../data/google_calendar/events.jsonl
+tables:
+  - name: events
+    columns:
+      - name: id
+        type: string
+      - name: summary
+        type: string
+      - name: description
+        type: string
+      - name: start_datetime
+        type: string
+      - name: end_datetime
+        type: string
+      - name: location
+        type: string
+      - name: attendees
+        type: json
+      - name: status
+        type: string

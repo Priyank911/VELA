@@ -1,0 +1,33 @@
+name: jobs
+type: jsonl
+description: Job listings database
+path: ../data/jobs/listings.jsonl
+tables:
+  - name: listings
+    columns:
+      - name: job_id
+        type: string
+      - name: title
+        type: string
+      - name: company
+        type: string
+      - name: location
+        type: string
+      - name: salary_min
+        type: integer
+      - name: salary_max
+        type: integer
+      - name: description
+        type: string
+      - name: requirements
+        type: json
+      - name: experience_level
+        type: string
+      - name: job_type
+        type: string
+      - name: url
+        type: string
+      - name: posted_date
+        type: string
+      - name: source
+        type: string

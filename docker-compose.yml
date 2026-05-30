@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vela-postgres
+    environment:
+      POSTGRES_USER: vela
+      POSTGRES_PASSWORD: vela_dev_password
+      POSTGRES_DB: vela
+    ports:
+      - "5432:5432"
+    volumes:
+      - vela_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vela"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  vela_pgdata:

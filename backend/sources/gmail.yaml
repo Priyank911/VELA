@@ -1,0 +1,40 @@
+name: gmail
+type: jsonl
+description: Gmail email data
+tables:
+  - name: inbox
+    path: ../data/gmail/inbox.jsonl
+    columns:
+      - name: id
+        type: string
+      - name: from
+        type: string
+      - name: to
+        type: string
+      - name: subject
+        type: string
+      - name: snippet
+        type: string
+      - name: date
+        type: string
+      - name: labels
+        type: json
+      - name: thread_id
+        type: string
+  - name: sent
+    path: ../data/gmail/sent.jsonl
+    columns:
+      - name: id
+        type: string
+      - name: from
+        type: string
+      - name: to
+        type: string
+      - name: subject
+        type: string
+      - name: snippet
+        type: string
+      - name: date
+        type: string
+      - name: thread_id
+        type: string

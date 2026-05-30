@@ -1,0 +1,19 @@
+name: notion
+type: jsonl
+description: Notion workspace data
+path: ../data/notion/pages.jsonl
+tables:
+  - name: pages
+    columns:
+      - name: page_id
+        type: string
+      - name: title
+        type: string
+      - name: type
+        type: string
+      - name: content
+        type: string
+      - name: tags
+        type: json
+      - name: last_edited
+        type: string

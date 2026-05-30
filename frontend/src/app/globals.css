@@ -1,0 +1,363 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════
+   VELA — Design System (OpenFlip-inspired terminal)
+   ═══════════════════════════════════════════════════ */
+
+:root {
+  --ink: #0a0a0a;
+  --amber: #ff8200;
+  --cyan: #00e5ff;
+  --highlight: #ffa940;
+  --error: #ef4444;
+  --green: #22c55e;
+  --grid-size: 18px;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--ink);
+  --color-foreground: var(--amber);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ── Scrollbar ── */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,130,0,0.15) transparent; }
+*::-webkit-scrollbar { width: 5px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(255,130,0,0.15); }
+
+/* ── Selection ── */
+::selection {
+  background-color: #ff8200;
+  color: #0a0a0a;
+}
+
+/* ── Base ── */
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ink);
+  color: var(--amber);
+  font-family: 'JetBrains Mono', monospace;
+  -webkit-font-smoothing: none;
+  min-height: 100vh;
+  margin: 0;
+}
+
+/* ── Grid Overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,130,0,0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,130,0,0.5) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Scanlines Overlay ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    rgba(255,169,64,0.5) 0 1px,
+    transparent 1px 3px
+  );
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Panel Component ── */
+.panel {
+  background: var(--ink);
+  border: 1px solid var(--amber);
+}
+@media (min-width: 640px) {
+  .panel { border-width: 2px; }
+}
+
+/* ── Button Component ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--amber);
+  color: var(--ink);
+  border: 1px solid var(--amber);
+  font-family: 'VT323', monospace;
+  font-size: 1.4rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: background-color 75ms, border-color 75ms;
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--highlight);
+  border-color: var(--highlight);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Field Component ── */
+.field {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  background: var(--ink);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-family: 'VT323', monospace;
+  font-size: 1.05rem;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.field::placeholder { color: rgba(255,130,0,0.4); }
+.field:focus {
+  border-color: var(--cyan);
+  outline: none;
+}
+
+/* ── Label Styles ── */
+.label-sm {
+  font-family: 'VT323', monospace;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(255,130,0,0.7);
+}
+.label-cyan {
+  font-family: 'VT323', monospace;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--cyan);
+}
+
+/* ── Chip ── */
+.chip-cyan {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.625rem;
+  background: var(--ink);
+  border: 1px solid rgba(0,229,255,0.6);
+  color: var(--cyan);
+  font-family: 'VT323', monospace;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+}
+.table-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(255,130,0,0.06);
+  color: rgba(255,130,0,0.6);
+  border: 1px solid rgba(255,130,0,0.15);
+}
+
+/* ── Pixel Shadow ── */
+.shadow-pixel {
+  box-shadow: 4px 4px 0 0 #630;
+}
+
+/* ── Glow Shadow ── */
+.shadow-glow {
+  box-shadow: 0 0 0 1px rgba(0,229,255,0.4), 0 0 20px rgba(0,229,255,0.15);
+}
+.shadow-glow-amber {
+  box-shadow: 0 0 0 1px rgba(255,130,0,0.4), 0 0 15px rgba(255,130,0,0.1);
+}
+
+/* ── Animations ── */
+@keyframes blink-cursor {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes flow-dash {
+  from { background-position: 0 0; }
+  to { background-position: 24px 0; }
+}
+@keyframes screen-flash {
+  0%, 100% { filter: drop-shadow(0 0 rgba(0,229,255,0)); }
+  50% { filter: drop-shadow(0 0 10px rgba(0,229,255,0.55)); }
+}
+@keyframes scan-bars {
+  from { background-position: 0 0; }
+  to { background-position: 180% 0; }
+}
+@keyframes progress-fill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+  opacity: 0;
+}
+.blink-cursor {
+  animation: blink-cursor 1s steps(2, end) infinite;
+}
+.screen-flash {
+  animation: screen-flash 1.35s steps(4, end) infinite;
+}
+
+/* ── Status Dots ── */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.status-dot.connected { background: var(--green); }
+.status-dot.disconnected { background: rgba(255,130,0,0.25); }
+.status-dot.error { background: var(--error); }
+.status-dot.connecting {
+  background: var(--amber);
+  animation: blink-cursor 0.6s steps(2, end) infinite;
+}
+
+/* ── Flow Lines ── */
+.flow-line {
+  background-image: repeating-linear-gradient(90deg, rgba(255,130,0,0.85) 0 6px, transparent 6px 12px);
+}
+.flow-line.is-live {
+  background-image: repeating-linear-gradient(90deg, rgba(0,229,255,0.95) 0 6px, transparent 6px 12px);
+  animation: flow-dash 0.9s linear infinite;
+}
+
+/* ── Scanlines Class ── */
+.scanlines { position: relative; }
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(transparent 0 2px, rgba(0,0,0,0.25) 2px 3px);
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+/* ── Progress Bar ── */
+.progress-fill {
+  transition: width 0.24s steps(8, end);
+}
+
+/* ── React Flow Overrides ── */
+.react-flow__background {
+  background: var(--ink) !important;
+}
+.react-flow__edge-path {
+  stroke: var(--amber) !important;
+  stroke-opacity: 0.6;
+  filter: none !important;
+}
+.react-flow__controls {
+  background: var(--ink) !important;
+  border: 1px solid rgba(255,130,0,0.3) !important;
+  border-radius: 0 !important;
+}
+.react-flow__controls button {
+  background: var(--ink) !important;
+  color: var(--amber) !important;
+  border-bottom: 1px solid rgba(255,130,0,0.15) !important;
+  border-radius: 0 !important;
+}
+.react-flow__controls button:hover {
+  background: rgba(255,130,0,0.08) !important;
+}
+.react-flow__controls svg {
+  fill: var(--amber) !important;
+}
+
+/* ── Markdown in Chat ── */
+.markdown-body {
+  color: rgba(255,130,0,0.85);
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.7;
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  color: var(--amber);
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-family: 'VT323', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.markdown-body h2 { font-size: 1.15em; }
+.markdown-body h3 { font-size: 1.05em; }
+.markdown-body strong { color: var(--amber); }
+.markdown-body a { color: var(--cyan); text-decoration: underline; }
+.markdown-body code {
+  background: rgba(255,130,0,0.06);
+  color: var(--cyan);
+  padding: 1px 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9em;
+}
+.markdown-body pre {
+  background: rgba(15,7,2,0.8);
+  border: 1px solid rgba(255,130,0,0.2);
+  padding: 12px;
+  overflow-x: auto;
+}
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+.markdown-body th {
+  background: rgba(255,130,0,0.06);
+  color: var(--amber);
+  text-align: left;
+  padding: 6px 10px;
+  border: 1px solid rgba(255,130,0,0.15);
+  font-size: 0.8em;
+  font-family: 'VT323', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.markdown-body td {
+  padding: 5px 10px;
+  border: 1px solid rgba(255,130,0,0.1);
+  font-size: 0.85em;
+}
+.markdown-body blockquote {
+  border-left: 2px solid var(--amber);
+  padding-left: 12px;
+  margin: 0.5em 0;
+  color: rgba(255,130,0,0.6);
+}
+.markdown-body ul, .markdown-body ol { padding-left: 1.5em; }
+.markdown-body li { margin: 0.2em 0; }
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid rgba(255,130,0,0.15);
+  margin: 1em 0;
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .blink-cursor, .screen-flash, .flow-line.is-live {
+    animation: none !important;
+  }
+}
