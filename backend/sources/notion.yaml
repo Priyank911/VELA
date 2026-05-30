@@ -1,19 +1,24 @@
 name: notion
-type: jsonl
+version: 0.1.0
+dsl_version: 3
+backend: file
 description: Notion workspace data
-path: ../data/notion/pages.jsonl
 tables:
   - name: pages
+    description: Notion pages table
+    format: jsonl
+    source:
+      location: file:///app/data/notion/
     columns:
       - name: page_id
-        type: string
+        type: Utf8
       - name: title
-        type: string
+        type: Utf8
       - name: type
-        type: string
+        type: Utf8
       - name: content
-        type: string
+        type: Utf8
       - name: tags
-        type: json
+        type: Json
       - name: last_edited
-        type: string
+        type: Utf8

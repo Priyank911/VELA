@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_session
-from app.db import crud
 from app.connectors.registry import get_all_connectors_info, get_connector
+from app.db import crud
+from app.db.database import get_session
 
 router = APIRouter(prefix="/api/connectors", tags=["connectors"])
 
@@ -58,23 +58,30 @@ async def connect_source(req: ConnectRequest, session: AsyncSession = Depends(ge
 
         tables = connector.get_available_tables()
         conn = await crud.upsert_connection(
-            session, req.user_id, req.source_type,
-            status="connected", tables=tables
+            session, req.user_id, req.source_type, status="connected", tables=tables
         )
         return {"status": "connected", "tables": tables}
 
     except HTTPException:
         raise
     except Exception as e:
-        await crud.upsert_connection(
-            session, req.user_id, req.source_type, status="error"
-        )
+        await crud.upsert_connection(session, req.user_id, req.source_type, status="error")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/disconnect")
-async def disconnect_source(req: DisconnectRequest,
-                             session: AsyncSession = Depends(get_session)):
+async def disconnect_source(req: DisconnectRequest, session: AsyncSession = Depends(get_session)):
     """Disconnect a data source."""
     await crud.delete_connection(session, req.user_id, req.source_type)
     return {"status": "disconnected"}
+
+
+@router.post("/sync/{user_id}")
+async def sync_user_sources(user_id: str, session: AsyncSession = Depends(get_session)):
+    """Trigger manual synchronization of all connected live sources."""
+    from app.connectors.google_sync import sync_google_data
+
+    ok = await sync_google_data(session, user_id)
+    if not ok:
+        return {"status": "skipped", "message": "No active Google connection or sync failed"}
+    return {"status": "success", "message": "Google data synchronized successfully"}

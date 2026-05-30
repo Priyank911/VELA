@@ -1,10 +1,10 @@
 """Connector registry — maps source names to connector classes."""
 
-from app.connectors.jobs import JobsConnector
-from app.connectors.gmail import GmailConnector
 from app.connectors.calendar import CalendarConnector
-from app.connectors.notion import NotionConnector
+from app.connectors.gmail import GmailConnector
+from app.connectors.jobs import JobsConnector
 from app.connectors.linkedin import LinkedInConnector
+from app.connectors.notion import NotionConnector
 
 CONNECTOR_REGISTRY = {
     "jobs": JobsConnector,

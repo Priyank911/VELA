@@ -1,23 +1,28 @@
 name: google_calendar
-type: jsonl
+version: 0.1.0
+dsl_version: 3
+backend: file
 description: Google Calendar events
-path: ../data/google_calendar/events.jsonl
 tables:
   - name: events
+    description: Google Calendar events table
+    format: jsonl
+    source:
+      location: file:///app/data/google_calendar/
     columns:
       - name: id
-        type: string
+        type: Utf8
       - name: summary
-        type: string
+        type: Utf8
       - name: description
-        type: string
+        type: Utf8
       - name: start_datetime
-        type: string
+        type: Utf8
       - name: end_datetime
-        type: string
+        type: Utf8
       - name: location
-        type: string
+        type: Utf8
       - name: attendees
-        type: json
+        type: Json
       - name: status
-        type: string
+        type: Utf8

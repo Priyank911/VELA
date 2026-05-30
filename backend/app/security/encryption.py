@@ -1,6 +1,7 @@
 """Fernet symmetric encryption for credential storage."""
 
 import os
+
 from cryptography.fernet import Fernet
 
 _KEY = os.getenv("FERNET_KEY", "")

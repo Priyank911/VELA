@@ -1,33 +1,38 @@
 name: jobs
-type: jsonl
+version: 0.1.0
+dsl_version: 3
+backend: file
 description: Job listings database
-path: ../data/jobs/listings.jsonl
 tables:
   - name: listings
+    description: Job listings table
+    format: jsonl
+    source:
+      location: file:///app/data/jobs/
     columns:
       - name: job_id
-        type: string
+        type: Utf8
       - name: title
-        type: string
+        type: Utf8
       - name: company
-        type: string
+        type: Utf8
       - name: location
-        type: string
+        type: Utf8
       - name: salary_min
-        type: integer
+        type: Int64
       - name: salary_max
-        type: integer
+        type: Int64
       - name: description
-        type: string
+        type: Utf8
       - name: requirements
-        type: json
+        type: Json
       - name: experience_level
-        type: string
+        type: Utf8
       - name: job_type
-        type: string
+        type: Utf8
       - name: url
-        type: string
+        type: Utf8
       - name: posted_date
-        type: string
+        type: Utf8
       - name: source
-        type: string
+        type: Utf8

@@ -19,7 +19,7 @@ export interface ConnectorInfo {
   name: string;
   display_name: string;
   description: string;
-  icon: string;
+  icon?: string;
   tables: string[];
   status: "connected" | "disconnected" | "error" | "connecting";
   always_connected?: boolean;
