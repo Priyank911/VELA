@@ -1,16 +1,16 @@
 """Chat and streaming router — the core agent interaction endpoint."""
 
 import asyncio
-import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_session
-from app.db import crud
-from app.agent.vela_agent import VelaAgent
 from app.agent.streaming import stream_manager
+from app.agent.vela_agent import VelaAgent
+from app.db import crud
+from app.db.database import get_session
 
 router = APIRouter(tags=["chat"])
 
@@ -72,6 +72,7 @@ async def ask_agent(req: AskRequest, session: AsyncSession = Depends(get_session
 
     # Import session factory for background task
     from app.db.database import async_session_factory
+
     asyncio.create_task(_run_agent())
 
     return {"conversation_id": conv.id, "status": "processing"}
@@ -113,8 +114,15 @@ async def stream_events(conversation_id: str, request: Request):
 @router.get("/api/conversations/{user_id}")
 async def list_conversations(user_id: str, session: AsyncSession = Depends(get_session)):
     convs = await crud.get_user_conversations(session, user_id)
-    return [{"id": c.id, "title": c.title, "created_at": str(c.created_at),
-             "updated_at": str(c.updated_at)} for c in convs]
+    return [
+        {
+            "id": c.id,
+            "title": c.title,
+            "created_at": str(c.created_at),
+            "updated_at": str(c.updated_at),
+        }
+        for c in convs
+    ]
 
 
 @router.get("/api/conversations/{conversation_id}/history")
@@ -123,7 +131,8 @@ async def get_history(conversation_id: str, session: AsyncSession = Depends(get_
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {
-        "id": conv.id, "title": conv.title,
+        "id": conv.id,
+        "title": conv.title,
         "messages": conv.messages or [],
         "created_at": str(conv.created_at),
     }

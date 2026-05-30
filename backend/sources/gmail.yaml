@@ -1,40 +1,48 @@
 name: gmail
-type: jsonl
+version: 0.1.0
+dsl_version: 3
+backend: file
 description: Gmail email data
 tables:
   - name: inbox
-    path: ../data/gmail/inbox.jsonl
+    description: Gmail inbox messages
+    format: jsonl
+    source:
+      location: file:///app/data/gmail/
     columns:
       - name: id
-        type: string
+        type: Utf8
       - name: from
-        type: string
+        type: Utf8
       - name: to
-        type: string
+        type: Utf8
       - name: subject
-        type: string
+        type: Utf8
       - name: snippet
-        type: string
+        type: Utf8
       - name: date
-        type: string
+        type: Utf8
       - name: labels
-        type: json
+        type: Json
       - name: thread_id
-        type: string
+        type: Utf8
   - name: sent
-    path: ../data/gmail/sent.jsonl
+    description: Gmail sent messages
+    format: jsonl
+    source:
+      location: file:///app/data/gmail/
     columns:
       - name: id
-        type: string
+        type: Utf8
       - name: from
-        type: string
+        type: Utf8
       - name: to
-        type: string
+        type: Utf8
       - name: subject
-        type: string
+        type: Utf8
       - name: snippet
-        type: string
+        type: Utf8
       - name: date
-        type: string
+        type: Utf8
       - name: thread_id
-        type: string
+        type: Utf8

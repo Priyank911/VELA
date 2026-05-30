@@ -2,7 +2,9 @@
 
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, JSON, Boolean
+
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text
+
 from app.db.database import Base
 
 
@@ -11,7 +13,7 @@ def _uuid() -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(Base):
@@ -83,4 +85,24 @@ class TrackedApplication(Base):
     applied_date = Column(String, default="")
     notes = Column(Text, default="")
     last_email_date = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+
+
+class JobListing(Base):
+    __tablename__ = "job_listings"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    job_id = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    company = Column(String, default="Unknown Company")
+    location = Column(String, default="Remote/US")
+    salary_min = Column(Integer, nullable=True)
+    salary_max = Column(Integer, nullable=True)
+    description = Column(Text, default="")
+    requirements = Column(JSON, default=list)
+    experience_level = Column(String, default="mid")
+    job_type = Column(String, default="full_time")
+    url = Column(String, default="")
+    posted_date = Column(String, default="")
+    source = Column(String, default="adzuna")
     created_at = Column(DateTime, default=_now)

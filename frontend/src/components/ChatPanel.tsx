@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useVelaStore } from "@/store/useVelaStore";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { askAgent } from "@/lib/api";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -155,7 +156,7 @@ export default function ChatPanel() {
               ) : (
                 <div className="markdown-body text-sm">
                   {msg.content ? (
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                   ) : isStreaming ? (
                     <div className="flex items-center gap-2">
                       <span

@@ -8,10 +8,13 @@ VELA_TOOLS = [
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "The SQL query to execute"},
-                "source": {"type": "string", "description": "Primary source being queried (gmail, calendar, notion, jobs)"}
+                "source": {
+                    "type": "string",
+                    "description": "Primary source being queried (gmail, calendar, notion, jobs)",
+                },
             },
-            "required": ["query"]
-        }
+            "required": ["query"],
+        },
     },
     {
         "name": "search_jobs",
@@ -23,10 +26,14 @@ VELA_TOOLS = [
                 "location": {"type": "string", "description": "Location filter"},
                 "experience_level": {"type": "string", "description": "junior, mid, senior"},
                 "salary_min": {"type": "integer", "description": "Minimum salary"},
-                "keywords": {"type": "array", "items": {"type": "string"}, "description": "Skill keywords"}
+                "keywords": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Skill keywords",
+                },
             },
-            "required": ["title"]
-        }
+            "required": ["title"],
+        },
     },
     {
         "name": "draft_email",
@@ -38,11 +45,17 @@ VELA_TOOLS = [
                 "recipient_email": {"type": "string", "description": "Email address"},
                 "company": {"type": "string", "description": "Company name"},
                 "job_title": {"type": "string", "description": "Position title"},
-                "email_type": {"type": "string", "description": "outreach, follow_up, thank_you, or application"},
-                "context": {"type": "string", "description": "Additional context for personalization"}
+                "email_type": {
+                    "type": "string",
+                    "description": "outreach, follow_up, thank_you, or application",
+                },
+                "context": {
+                    "type": "string",
+                    "description": "Additional context for personalization",
+                },
             },
-            "required": ["company", "email_type"]
-        }
+            "required": ["company", "email_type"],
+        },
     },
     {
         "name": "analyze_resume",
@@ -51,10 +64,14 @@ VELA_TOOLS = [
             "type": "object",
             "properties": {
                 "target_role": {"type": "string", "description": "The role they're targeting"},
-                "focus_areas": {"type": "array", "items": {"type": "string"}, "description": "Specific areas to focus on"}
+                "focus_areas": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Specific areas to focus on",
+                },
             },
-            "required": []
-        }
+            "required": [],
+        },
     },
     {
         "name": "track_application",
@@ -64,11 +81,14 @@ VELA_TOOLS = [
             "properties": {
                 "company_name": {"type": "string", "description": "Company name"},
                 "job_title": {"type": "string", "description": "Position title"},
-                "status": {"type": "string", "description": "applied, interviewing, offered, rejected"},
-                "notes": {"type": "string", "description": "Additional notes"}
+                "status": {
+                    "type": "string",
+                    "description": "applied, interviewing, offered, rejected",
+                },
+                "notes": {"type": "string", "description": "Additional notes"},
             },
-            "required": ["company_name"]
-        }
+            "required": ["company_name"],
+        },
     },
     {
         "name": "store_memory",
@@ -76,12 +96,15 @@ VELA_TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "memory_type": {"type": "string", "description": "meeting, company, preference, note, deadline"},
+                "memory_type": {
+                    "type": "string",
+                    "description": "meeting, company, preference, note, deadline",
+                },
                 "content": {"type": "string", "description": "What to remember"},
-                "date": {"type": "string", "description": "Associated date if any (ISO format)"}
+                "date": {"type": "string", "description": "Associated date if any (ISO format)"},
             },
-            "required": ["memory_type", "content"]
-        }
+            "required": ["memory_type", "content"],
+        },
     },
     {
         "name": "search_youtube",
@@ -90,11 +113,14 @@ VELA_TOOLS = [
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "What to search for"},
-                "skill_level": {"type": "string", "description": "beginner, intermediate, advanced"},
-                "max_results": {"type": "integer", "description": "Number of results (default 5)"}
+                "skill_level": {
+                    "type": "string",
+                    "description": "beginner, intermediate, advanced",
+                },
+                "max_results": {"type": "integer", "description": "Number of results (default 5)"},
             },
-            "required": ["query"]
-        }
+            "required": ["query"],
+        },
     },
     {
         "name": "check_calendar",
@@ -102,11 +128,17 @@ VELA_TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "days_ahead": {"type": "integer", "description": "How many days ahead to check (default 7)"},
-                "event_type": {"type": "string", "description": "Filter: interview, meeting, prep, all"}
+                "days_ahead": {
+                    "type": "integer",
+                    "description": "How many days ahead to check (default 7)",
+                },
+                "event_type": {
+                    "type": "string",
+                    "description": "Filter: interview, meeting, prep, all",
+                },
             },
-            "required": []
-        }
+            "required": [],
+        },
     },
     {
         "name": "schedule_event",
@@ -117,11 +149,14 @@ VELA_TOOLS = [
                 "title": {"type": "string", "description": "Event title"},
                 "date": {"type": "string", "description": "Date (ISO format)"},
                 "time": {"type": "string", "description": "Time (HH:MM)"},
-                "duration_minutes": {"type": "integer", "description": "Duration in minutes (default 60)"},
-                "description": {"type": "string", "description": "Event description"}
+                "duration_minutes": {
+                    "type": "integer",
+                    "description": "Duration in minutes (default 60)",
+                },
+                "description": {"type": "string", "description": "Event description"},
             },
-            "required": ["title", "date"]
-        }
+            "required": ["title", "date"],
+        },
     },
     {
         "name": "get_company_info",
@@ -130,10 +165,13 @@ VELA_TOOLS = [
             "type": "object",
             "properties": {
                 "company_name": {"type": "string", "description": "Company name"},
-                "info_type": {"type": "string", "description": "overview, culture, tech_stack, open_roles, all"}
+                "info_type": {
+                    "type": "string",
+                    "description": "overview, culture, tech_stack, open_roles, all",
+                },
             },
-            "required": ["company_name"]
-        }
+            "required": ["company_name"],
+        },
     },
     {
         "name": "check_email_notifications",
@@ -141,10 +179,17 @@ VELA_TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "companies": {"type": "array", "items": {"type": "string"}, "description": "Company names to check for"},
-                "days_back": {"type": "integer", "description": "How many days back to check (default 7)"}
+                "companies": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Company names to check for",
+                },
+                "days_back": {
+                    "type": "integer",
+                    "description": "How many days back to check (default 7)",
+                },
             },
-            "required": []
-        }
-    }
+            "required": [],
+        },
+    },
 ]

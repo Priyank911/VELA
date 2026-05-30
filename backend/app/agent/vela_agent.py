@@ -5,13 +5,12 @@ import json
 import os
 import random
 import time
-import uuid
 from typing import Any
 
+from app.agent.coral_executor import coral_executor
+from app.agent.prompts import build_system_prompt
 from app.agent.streaming import stream_manager
 from app.agent.tools import VELA_TOOLS
-from app.agent.prompts import build_system_prompt
-from app.agent.coral_executor import coral_executor
 
 
 class VelaAgent:
@@ -20,15 +19,20 @@ class VelaAgent:
     MAX_TOOL_CALLS = 12
     TIMEOUT_SECONDS = 45
 
-    def __init__(self, user_id: str, conversation_id: str,
-                 connected_sources: list[str] = None,
-                 user_context: dict = None):
+    def __init__(
+        self,
+        user_id: str,
+        conversation_id: str,
+        connected_sources: list[str] = None,
+        user_context: dict = None,
+    ):
         self.user_id = user_id
         self.conversation_id = conversation_id
         self.connected_sources = connected_sources or ["jobs"]
         self.user_context = user_context or {}
-        self.api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        self.use_mock = not bool(self.api_key)
+        self.anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+        self.gemini_key = os.getenv("GEMINI_API_KEY", "")
+        self.use_mock = not (bool(self.anthropic_key) or bool(self.gemini_key))
         self._node_counter = 0
 
     def _next_node_id(self) -> str:
@@ -54,34 +58,45 @@ class VelaAgent:
 
         # Emit query node
         query_node_id = self._next_node_id()
-        await sm.emit_graph_node(self.conversation_id, {
-            "id": query_node_id,
-            "type": "query",
-            "label": user_message[:50] + ("..." if len(user_message) > 50 else ""),
-            "status": "complete"
-        })
+        await sm.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": query_node_id,
+                "type": "query",
+                "label": user_message[:50] + ("..." if len(user_message) > 50 else ""),
+                "status": "complete",
+            },
+        )
         await asyncio.sleep(0.1)
 
         # Emit claude thinking node
         claude_node_id = self._next_node_id()
-        await sm.emit_graph_node(self.conversation_id, {
-            "id": claude_node_id,
-            "type": "claude",
-            "label": "Analyzing request...",
-            "status": "running"
-        })
-        await sm.emit_graph_edge(self.conversation_id, {
-            "id": f"edge-{query_node_id}-{claude_node_id}",
-            "source": query_node_id,
-            "target": claude_node_id,
-            "animated": True
-        })
+        await sm.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": claude_node_id,
+                "type": "claude",
+                "label": "Analyzing request...",
+                "status": "running",
+            },
+        )
+        await sm.emit_graph_edge(
+            self.conversation_id,
+            {
+                "id": f"edge-{query_node_id}-{claude_node_id}",
+                "source": query_node_id,
+                "target": claude_node_id,
+                "animated": True,
+            },
+        )
         await asyncio.sleep(0.3)
 
         if self.use_mock:
             answer = await self._run_mock(user_message, claude_node_id)
-        else:
+        elif self.anthropic_key:
             answer = await self._run_real(user_message, claude_node_id)
+        else:
+            answer = await self._run_gemini(user_message, claude_node_id)
 
         return answer
 
@@ -89,6 +104,7 @@ class VelaAgent:
         """Run with real Anthropic API."""
         try:
             import anthropic
+
             client = anthropic.AsyncAnthropic(api_key=self.api_key)
         except Exception as e:
             await stream_manager.emit_error(self.conversation_id, f"Failed to init Anthropic: {e}")
@@ -127,10 +143,15 @@ class VelaAgent:
 
                 if response.stop_reason == "end_turn":
                     # Update claude node to complete
-                    await sm.emit_graph_node(self.conversation_id, {
-                        "id": claude_node_id, "type": "claude",
-                        "label": "Analysis complete", "status": "complete"
-                    })
+                    await sm.emit_graph_node(
+                        self.conversation_id,
+                        {
+                            "id": claude_node_id,
+                            "type": "claude",
+                            "label": "Analysis complete",
+                            "status": "complete",
+                        },
+                    )
 
                     # Extract and stream answer
                     answer = ""
@@ -139,19 +160,28 @@ class VelaAgent:
                             answer = block.text
                             # Stream in chunks
                             for i in range(0, len(answer), 20):
-                                await sm.emit_answer_chunk(self.conversation_id, answer[i:i+20])
+                                await sm.emit_answer_chunk(self.conversation_id, answer[i : i + 20])
                                 await asyncio.sleep(0.02)
-                    
+
                     # Emit answer node
                     answer_node_id = self._next_node_id()
-                    await sm.emit_graph_node(self.conversation_id, {
-                        "id": answer_node_id, "type": "answer",
-                        "label": "Complete", "status": "complete"
-                    })
-                    await sm.emit_graph_edge(self.conversation_id, {
-                        "id": f"edge-{claude_node_id}-{answer_node_id}",
-                        "source": claude_node_id, "target": answer_node_id
-                    })
+                    await sm.emit_graph_node(
+                        self.conversation_id,
+                        {
+                            "id": answer_node_id,
+                            "type": "answer",
+                            "label": "Complete",
+                            "status": "complete",
+                        },
+                    )
+                    await sm.emit_graph_edge(
+                        self.conversation_id,
+                        {
+                            "id": f"edge-{claude_node_id}-{answer_node_id}",
+                            "source": claude_node_id,
+                            "target": answer_node_id,
+                        },
+                    )
                     await sm.emit_done(self.conversation_id)
                     return answer
 
@@ -160,12 +190,18 @@ class VelaAgent:
                     for block in response.content:
                         if block.type == "tool_use":
                             tool_call_count += 1
-                            result = await self._execute_tool(block.name, block.input, claude_node_id)
-                            tool_results.append({
-                                "type": "tool_result",
-                                "tool_use_id": block.id,
-                                "content": json.dumps(result) if isinstance(result, (dict, list)) else str(result),
-                            })
+                            result = await self._execute_tool(
+                                block.name, block.input, claude_node_id
+                            )
+                            tool_results.append(
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": block.id,
+                                    "content": json.dumps(result)
+                                    if isinstance(result, (dict, list))
+                                    else str(result),
+                                }
+                            )
                     messages.append({"role": "user", "content": tool_results})
                 else:
                     break
@@ -179,6 +215,148 @@ class VelaAgent:
             await sm.emit_done(self.conversation_id)
             return f"An error occurred: {e}"
 
+    async def _run_gemini(self, user_message: str, claude_node_id: str) -> str:
+        """Run with Gemini API."""
+        try:
+            import google.generativeai as genai
+
+            genai.configure(api_key=self.gemini_key)
+        except Exception as e:
+            await stream_manager.emit_error(self.conversation_id, f"Failed to init Gemini: {e}")
+            await stream_manager.emit_done(self.conversation_id)
+            return f"Error initializing AI: {e}"
+
+        tables = self._build_tables()
+        system_prompt = build_system_prompt(
+            available_tables=tables,
+            user_role=self.user_context.get("role_preference", ""),
+            user_skills=self.user_context.get("skills", []),
+            resume_summary=self.user_context.get("resume_text", "")[:500],
+            tracked_companies=self.user_context.get("tracked_companies", []),
+            memories=self.user_context.get("memories", []),
+        )
+
+        model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
+        # Convert Anthropic tools format to Gemini tools format
+        gemini_tools = []
+        for t in VELA_TOOLS:
+            gemini_tools.append(
+                {
+                    "name": t["name"],
+                    "description": t["description"],
+                    "parameters": t["input_schema"],
+                }
+            )
+
+        tools_config = [{"function_declarations": gemini_tools}]
+
+        try:
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=system_prompt,
+                tools=tools_config,
+            )
+        except Exception as e:
+            await stream_manager.emit_error(
+                self.conversation_id, f"Failed to create GenerativeModel: {e}"
+            )
+            await stream_manager.emit_done(self.conversation_id)
+            return f"Error creating model: {e}"
+
+        tool_call_count = 0
+        start_time = time.monotonic()
+        sm = stream_manager
+
+        # Build initial conversation history using raw dicts for version compatibility
+        messages = [{"role": "user", "parts": [user_message]}]
+
+        try:
+            while tool_call_count < self.MAX_TOOL_CALLS:
+                if time.monotonic() - start_time > self.TIMEOUT_SECONDS:
+                    break
+
+                response = await model.generate_content_async(contents=messages)
+
+                # Append the model's response to history
+                if response.candidates and response.candidates[0].content:
+                    messages.append(response.candidates[0].content)
+                else:
+                    break
+
+                # Check for function calls
+                function_calls = []
+                if response.candidates and response.candidates[0].content.parts:
+                    function_calls = [
+                        part.function_call
+                        for part in response.candidates[0].content.parts
+                        if part.function_call
+                    ]
+
+                if not function_calls:
+                    # No more tool calls, we have the final answer!
+                    answer = response.text
+
+                    # Update thinking node to complete
+                    await sm.emit_graph_node(
+                        self.conversation_id,
+                        {
+                            "id": claude_node_id,
+                            "type": "claude",
+                            "label": "Analysis complete",
+                            "status": "complete",
+                        },
+                    )
+
+                    # Stream the answer in chunks
+                    for i in range(0, len(answer), 20):
+                        await sm.emit_answer_chunk(self.conversation_id, answer[i : i + 20])
+                        await asyncio.sleep(0.02)
+
+                    # Emit answer node
+                    answer_node_id = self._next_node_id()
+                    await sm.emit_graph_node(
+                        self.conversation_id,
+                        {
+                            "id": answer_node_id,
+                            "type": "answer",
+                            "label": "Complete",
+                            "status": "complete",
+                        },
+                    )
+                    await sm.emit_graph_edge(
+                        self.conversation_id,
+                        {
+                            "id": f"edge-{claude_node_id}-{answer_node_id}",
+                            "source": claude_node_id,
+                            "target": answer_node_id,
+                        },
+                    )
+                    await sm.emit_done(self.conversation_id)
+                    return answer
+
+                # We have function calls, execute them
+                user_parts = []
+                for fc in function_calls:
+                    tool_call_count += 1
+                    result = await self._execute_tool(fc.name, dict(fc.args), claude_node_id)
+
+                    # Map to raw dictionary format to prevent import errors across SDK versions
+                    part = {"function_response": {"name": fc.name, "response": {"result": result}}}
+                    user_parts.append(part)
+
+                # Append the tool responses to history
+                messages.append({"role": "user", "parts": user_parts})
+
+            # Timeout or max tools — emit done
+            await sm.emit_done(self.conversation_id)
+            return "I've gathered what I can. Let me know if you need more specific help!"
+
+        except Exception as e:
+            await sm.emit_error(self.conversation_id, f"Gemini loop error: {e}")
+            await sm.emit_done(self.conversation_id)
+            return f"An error occurred: {e}"
+
     async def _execute_tool(self, tool_name: str, tool_input: dict, parent_node_id: str) -> Any:
         """Execute a tool and emit graph events."""
         sm = stream_manager
@@ -187,40 +365,64 @@ class VelaAgent:
 
         # Emit tool call node (running)
         source_name = tool_input.get("source", tool_name)
-        await sm.emit_graph_node(self.conversation_id, {
-            "id": node_id, "type": "tool_call",
-            "label": tool_name, "status": "running",
-            "source_name": source_name,
-            "sql_query": tool_input.get("query", ""),
-        })
-        await sm.emit_graph_edge(self.conversation_id, {
-            "id": f"edge-{parent_node_id}-{node_id}",
-            "source": parent_node_id, "target": node_id,
-            "animated": True
-        })
+        await sm.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": node_id,
+                "type": "tool_call",
+                "label": tool_name,
+                "status": "running",
+                "source_name": source_name,
+                "sql_query": tool_input.get("query", ""),
+            },
+        )
+        await sm.emit_graph_edge(
+            self.conversation_id,
+            {
+                "id": f"edge-{parent_node_id}-{node_id}",
+                "source": parent_node_id,
+                "target": node_id,
+                "animated": True,
+            },
+        )
 
         try:
             result = await self._do_execute_tool(tool_name, tool_input)
             latency = int((time.monotonic() - start) * 1000)
 
-            row_count = len(result) if isinstance(result, list) else (result.get("row_count", 0) if isinstance(result, dict) else 0)
+            row_count = (
+                len(result)
+                if isinstance(result, list)
+                else (result.get("row_count", 0) if isinstance(result, dict) else 0)
+            )
 
-            await sm.emit_graph_node(self.conversation_id, {
-                "id": node_id, "type": "tool_call",
-                "label": tool_name, "status": "complete",
-                "source_name": source_name,
-                "row_count": row_count,
-                "latency_ms": latency,
-            })
+            await sm.emit_graph_node(
+                self.conversation_id,
+                {
+                    "id": node_id,
+                    "type": "tool_call",
+                    "label": tool_name,
+                    "status": "complete",
+                    "source_name": source_name,
+                    "row_count": row_count,
+                    "latency_ms": latency,
+                },
+            )
             return result
 
         except Exception as e:
             latency = int((time.monotonic() - start) * 1000)
-            await sm.emit_graph_node(self.conversation_id, {
-                "id": node_id, "type": "tool_call",
-                "label": tool_name, "status": "error",
-                "error_message": str(e), "latency_ms": latency,
-            })
+            await sm.emit_graph_node(
+                self.conversation_id,
+                {
+                    "id": node_id,
+                    "type": "tool_call",
+                    "label": tool_name,
+                    "status": "error",
+                    "error_message": str(e),
+                    "latency_ms": latency,
+                },
+            )
             return {"error": str(e)}
 
     async def _do_execute_tool(self, tool_name: str, tool_input: dict) -> Any:
@@ -229,8 +431,23 @@ class VelaAgent:
             return coral_executor.execute_sql(tool_input["query"])
 
         elif tool_name == "search_jobs":
-            query = f"SELECT * FROM jobs.listings WHERE title LIKE '%{tool_input.get('title', '')}%' LIMIT 10"
-            return coral_executor.execute_sql(query)
+            title_query = tool_input.get("title", "")
+            location_query = tool_input.get("location")
+
+            # 1. Query the local cache via Coral SQL first (case-insensitive)
+            sql_query = f"SELECT * FROM jobs.listings WHERE title ILIKE '%{title_query}%' LIMIT 10"
+            result = coral_executor.execute_sql(sql_query)
+
+            # 2. If local cache contains no matches, fetch live from Adzuna and update storage
+            rows = result.get("rows", []) if isinstance(result, dict) else result
+            if not rows or len(rows) == 0:
+                from app.connectors.job_search import fetch_and_sync_live_jobs
+
+                await fetch_and_sync_live_jobs(title_query, location_query)
+                # Re-query from Coral
+                result = coral_executor.execute_sql(sql_query)
+
+            return result
 
         elif tool_name == "check_calendar":
             return coral_executor.execute_sql("SELECT * FROM google_calendar.events LIMIT 10")
@@ -238,9 +455,15 @@ class VelaAgent:
         elif tool_name == "check_email_notifications":
             return coral_executor.execute_sql("SELECT * FROM gmail.inbox LIMIT 10")
 
-        elif tool_name in ("draft_email", "analyze_resume", "store_memory",
-                          "track_application", "search_youtube", "schedule_event",
-                          "get_company_info"):
+        elif tool_name in (
+            "draft_email",
+            "analyze_resume",
+            "store_memory",
+            "track_application",
+            "search_youtube",
+            "schedule_event",
+            "get_company_info",
+        ):
             return {"status": "success", "tool": tool_name, "input": tool_input}
 
         return {"status": "unknown_tool", "tool": tool_name}
@@ -253,7 +476,10 @@ class VelaAgent:
         msg_lower = user_message.lower()
 
         # Determine query type and generate appropriate mock response
-        if any(w in msg_lower for w in ["job", "role", "position", "find", "search", "hiring", "opportunity"]):
+        if any(
+            w in msg_lower
+            for w in ["job", "role", "position", "find", "search", "hiring", "opportunity"]
+        ):
             answer = await self._mock_job_search(claude_node_id)
         elif any(w in msg_lower for w in ["resume", "cv", "improve", "review", "analyze"]):
             answer = await self._mock_resume_analysis(claude_node_id)
@@ -276,82 +502,126 @@ class VelaAgent:
 
         # Emit synthesis + answer nodes
         synth_id = self._next_node_id()
-        await sm.emit_graph_node(self.conversation_id, {
-            "id": synth_id, "type": "synthesis",
-            "label": "Synthesizing results...", "status": "running"
-        })
+        await sm.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": synth_id,
+                "type": "synthesis",
+                "label": "Synthesizing results...",
+                "status": "running",
+            },
+        )
         await asyncio.sleep(0.3)
 
-        await sm.emit_graph_node(self.conversation_id, {
-            "id": synth_id, "type": "synthesis",
-            "label": "Synthesized", "status": "complete"
-        })
+        await sm.emit_graph_node(
+            self.conversation_id,
+            {"id": synth_id, "type": "synthesis", "label": "Synthesized", "status": "complete"},
+        )
 
         answer_id = self._next_node_id()
-        await sm.emit_graph_node(self.conversation_id, {
-            "id": answer_id, "type": "answer",
-            "label": "Complete ✓", "status": "complete"
-        })
-        await sm.emit_graph_edge(self.conversation_id, {
-            "id": f"edge-{synth_id}-{answer_id}",
-            "source": synth_id, "target": answer_id
-        })
+        await sm.emit_graph_node(
+            self.conversation_id,
+            {"id": answer_id, "type": "answer", "label": "Complete ✓", "status": "complete"},
+        )
+        await sm.emit_graph_edge(
+            self.conversation_id,
+            {"id": f"edge-{synth_id}-{answer_id}", "source": synth_id, "target": answer_id},
+        )
 
         # Stream answer text
         for i in range(0, len(answer), 15):
-            await sm.emit_answer_chunk(self.conversation_id, answer[i:i+15])
+            await sm.emit_answer_chunk(self.conversation_id, answer[i : i + 15])
             await asyncio.sleep(0.03)
 
         await sm.emit_done(self.conversation_id)
         return answer
 
-    async def _mock_tool_node(self, tool_name: str, parent_id: str,
-                               source: str = "", row_count: int = 0,
-                               sql: str = "") -> str:
+    async def _mock_tool_node(
+        self, tool_name: str, parent_id: str, source: str = "", row_count: int = 0, sql: str = ""
+    ) -> str:
         sm = stream_manager
         node_id = self._next_node_id()
         latency = random.randint(45, 280)
 
-        await sm.emit_graph_node(self.conversation_id, {
-            "id": node_id, "type": "tool_call", "label": tool_name,
-            "status": "running", "source_name": source, "sql_query": sql
-        })
-        await sm.emit_graph_edge(self.conversation_id, {
-            "id": f"edge-{parent_id}-{node_id}",
-            "source": parent_id, "target": node_id, "animated": True
-        })
+        await sm.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": node_id,
+                "type": "tool_call",
+                "label": tool_name,
+                "status": "running",
+                "source_name": source,
+                "sql_query": sql,
+            },
+        )
+        await sm.emit_graph_edge(
+            self.conversation_id,
+            {
+                "id": f"edge-{parent_id}-{node_id}",
+                "source": parent_id,
+                "target": node_id,
+                "animated": True,
+            },
+        )
         await asyncio.sleep(random.uniform(0.3, 0.8))
 
-        await sm.emit_graph_node(self.conversation_id, {
-            "id": node_id, "type": "tool_call", "label": tool_name,
-            "status": "complete", "source_name": source,
-            "row_count": row_count, "latency_ms": latency
-        })
+        await sm.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": node_id,
+                "type": "tool_call",
+                "label": tool_name,
+                "status": "complete",
+                "source_name": source,
+                "row_count": row_count,
+                "latency_ms": latency,
+            },
+        )
 
         # Connect to synthesis
         synth_id = self._next_node_id()
-        await sm.emit_graph_edge(self.conversation_id, {
-            "id": f"edge-{node_id}-{synth_id}",
-            "source": node_id, "target": synth_id
-        })
+        await sm.emit_graph_edge(
+            self.conversation_id,
+            {"id": f"edge-{node_id}-{synth_id}", "source": node_id, "target": synth_id},
+        )
         return node_id
 
     async def _mock_job_search(self, claude_node_id: str) -> str:
-        await stream_manager.emit_graph_node(self.conversation_id, {
-            "id": claude_node_id, "type": "claude",
-            "label": "Planning job search...", "status": "running"
-        })
+        await stream_manager.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": claude_node_id,
+                "type": "claude",
+                "label": "Planning job search...",
+                "status": "running",
+            },
+        )
         await asyncio.sleep(0.5)
 
-        await self._mock_tool_node("search_jobs", claude_node_id, "jobs", 8,
-                                    "SELECT * FROM jobs.listings WHERE experience_level IN ('mid','senior') LIMIT 10")
-        await self._mock_tool_node("coral_sql", claude_node_id, "linkedin", 3,
-                                    "SELECT * FROM linkedin.profiles WHERE company IN ('Stripe','Vercel')")
+        await self._mock_tool_node(
+            "search_jobs",
+            claude_node_id,
+            "jobs",
+            8,
+            "SELECT * FROM jobs.listings WHERE experience_level IN ('mid','senior') LIMIT 10",
+        )
+        await self._mock_tool_node(
+            "coral_sql",
+            claude_node_id,
+            "linkedin",
+            3,
+            "SELECT * FROM linkedin.profiles WHERE company IN ('Stripe','Vercel')",
+        )
 
-        await stream_manager.emit_graph_node(self.conversation_id, {
-            "id": claude_node_id, "type": "claude",
-            "label": "Search complete", "status": "complete"
-        })
+        await stream_manager.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": claude_node_id,
+                "type": "claude",
+                "label": "Search complete",
+                "status": "complete",
+            },
+        )
 
         return """## 🎯 Top Job Matches Found
 
@@ -391,18 +661,28 @@ I searched across **jobs** and **LinkedIn** data sources. Here are your best mat
 """
 
     async def _mock_resume_analysis(self, claude_node_id: str) -> str:
-        await stream_manager.emit_graph_node(self.conversation_id, {
-            "id": claude_node_id, "type": "claude",
-            "label": "Analyzing resume...", "status": "running"
-        })
+        await stream_manager.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": claude_node_id,
+                "type": "claude",
+                "label": "Analyzing resume...",
+                "status": "running",
+            },
+        )
         await asyncio.sleep(0.4)
 
         await self._mock_tool_node("analyze_resume", claude_node_id, "resume", 1)
 
-        await stream_manager.emit_graph_node(self.conversation_id, {
-            "id": claude_node_id, "type": "claude",
-            "label": "Analysis complete", "status": "complete"
-        })
+        await stream_manager.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": claude_node_id,
+                "type": "claude",
+                "label": "Analysis complete",
+                "status": "complete",
+            },
+        )
 
         return """## 📄 Resume Analysis Report
 
@@ -446,10 +726,15 @@ Want me to help **rewrite specific sections**?
 """
 
     async def _mock_email_draft(self, claude_node_id: str) -> str:
-        await stream_manager.emit_graph_node(self.conversation_id, {
-            "id": claude_node_id, "type": "claude",
-            "label": "Crafting email...", "status": "running"
-        })
+        await stream_manager.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": claude_node_id,
+                "type": "claude",
+                "label": "Crafting email...",
+                "status": "running",
+            },
+        )
         await asyncio.sleep(0.4)
 
         await self._mock_tool_node("draft_email", claude_node_id, "email", 1)
@@ -491,8 +776,13 @@ Want me to **customize this further** or **draft emails for other companies**?
 
     async def _mock_calendar_check(self, claude_node_id: str) -> str:
         await asyncio.sleep(0.3)
-        await self._mock_tool_node("check_calendar", claude_node_id, "calendar", 5,
-                                    "SELECT * FROM google_calendar.events WHERE start_datetime >= NOW()")
+        await self._mock_tool_node(
+            "check_calendar",
+            claude_node_id,
+            "calendar",
+            5,
+            "SELECT * FROM google_calendar.events WHERE start_datetime >= NOW()",
+        )
         return """## 📅 Your Upcoming Schedule
 
 ### This Week
@@ -612,8 +902,13 @@ I'll monitor your Gmail for responses from **Stripe** and notify you immediately
 
     async def _mock_check_emails(self, claude_node_id: str) -> str:
         await asyncio.sleep(0.3)
-        await self._mock_tool_node("check_email_notifications", claude_node_id, "gmail", 12,
-                                    "SELECT * FROM gmail.inbox WHERE from_address LIKE '%stripe%' OR from_address LIKE '%vercel%'")
+        await self._mock_tool_node(
+            "check_email_notifications",
+            claude_node_id,
+            "gmail",
+            12,
+            "SELECT * FROM gmail.inbox WHERE from_address LIKE '%stripe%' OR from_address LIKE '%vercel%'",
+        )
         return """## 📬 Email Notifications
 
 I checked your inbox for responses from tracked companies:
@@ -644,13 +939,18 @@ I'll keep monitoring and alert you to any new responses!
 """
 
     async def _mock_general(self, claude_node_id: str, msg: str) -> str:
-        await stream_manager.emit_graph_node(self.conversation_id, {
-            "id": claude_node_id, "type": "claude",
-            "label": "Processing...", "status": "complete"
-        })
+        await stream_manager.emit_graph_node(
+            self.conversation_id,
+            {
+                "id": claude_node_id,
+                "type": "claude",
+                "label": "Processing...",
+                "status": "complete",
+            },
+        )
         await asyncio.sleep(0.3)
 
-        return f"""## 👋 Hey there! I'm Vela, your personal career agent.
+        return """## 👋 Hey there! I'm Vela, your personal career agent.
 
 I'm here to help you with your entire career journey. Here's what I can do:
 

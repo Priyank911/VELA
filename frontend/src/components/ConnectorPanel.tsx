@@ -84,6 +84,19 @@ export default function ConnectorPanel() {
 
   const handleConnect = async (name: string) => {
     if (!user) return;
+    
+    if (name === "gmail" || name === "google_calendar") {
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      window.location.href = `${BACKEND_URL}/api/connectors/google/login?user_id=${user.id}`;
+      return;
+    }
+
+    if (name === "notion") {
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      window.location.href = `${BACKEND_URL}/api/connectors/notion/login?user_id=${user.id}`;
+      return;
+    }
+
     setLoading(name);
     updateConnector(name, { status: "connecting" });
     try {

@@ -2,6 +2,7 @@
 
 import os
 from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 
 # Load .env before anything else
@@ -16,13 +17,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.db.database import init_db
-from app.routers import users, connectors, chat
+from app.routers import chat, connectors, google_oauth, notion_oauth, users
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database on startup."""
+    """Initialize database on startup and start background scheduler."""
     await init_db()
+
+    # Start background job sync scheduler (fetches CSE jobs daily)
+    from app.services.scheduler import start_job_scheduler
+
+    start_job_scheduler(interval_hours=24.0)
+
     yield
 
 
@@ -61,6 +68,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(users.router)
 app.include_router(connectors.router)
 app.include_router(chat.router)
+app.include_router(google_oauth.router)
+app.include_router(notion_oauth.router)
 
 
 @app.get("/health")
@@ -75,4 +84,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

@@ -43,14 +43,18 @@ class CoralExecutor:
         try:
             result = subprocess.run(
                 [self.coral_path, "sql", "--format", "json", query],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             latency = int((time.monotonic() - start) * 1000)
 
             if result.returncode != 0:
                 return {
-                    "rows": [], "row_count": 0, "latency_ms": latency,
-                    "error": result.stderr.strip() or "Coral SQL execution failed"
+                    "rows": [],
+                    "row_count": 0,
+                    "latency_ms": latency,
+                    "error": result.stderr.strip() or "Coral SQL execution failed",
                 }
 
             payload = json.loads(result.stdout)
@@ -61,10 +65,20 @@ class CoralExecutor:
             return {"rows": rows, "row_count": len(rows), "latency_ms": latency, "error": None}
 
         except subprocess.TimeoutExpired:
-            return {"rows": [], "row_count": 0, "latency_ms": 30000, "error": "Query timed out (30s)"}
+            return {
+                "rows": [],
+                "row_count": 0,
+                "latency_ms": 30000,
+                "error": "Query timed out (30s)",
+            }
         except json.JSONDecodeError:
             latency = int((time.monotonic() - start) * 1000)
-            return {"rows": [], "row_count": 0, "latency_ms": latency, "error": "Failed to parse Coral output"}
+            return {
+                "rows": [],
+                "row_count": 0,
+                "latency_ms": latency,
+                "error": "Failed to parse Coral output",
+            }
         except Exception as e:
             latency = int((time.monotonic() - start) * 1000)
             return {"rows": [], "row_count": 0, "latency_ms": latency, "error": str(e)}

@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_session
 from app.db import crud
+from app.db.database import get_session
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -32,7 +32,8 @@ async def init_user(req: InitUserRequest, session: AsyncSession = Depends(get_se
     try:
         user = await crud.get_or_create_user(session, req.email)
         return {
-            "id": user.id, "email": user.email,
+            "id": user.id,
+            "email": user.email,
             "display_name": user.display_name or "",
             "role_preference": user.role_preference or "",
             "skills": user.skills or [],
@@ -51,7 +52,8 @@ async def get_user(user_id: str, session: AsyncSession = Depends(get_session)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return {
-        "id": user.id, "email": user.email,
+        "id": user.id,
+        "email": user.email,
         "display_name": user.display_name or "",
         "role_preference": user.role_preference or "",
         "skills": user.skills or [],
@@ -63,8 +65,9 @@ async def get_user(user_id: str, session: AsyncSession = Depends(get_session)):
 
 
 @router.put("/{user_id}")
-async def update_user(user_id: str, req: UpdateUserRequest,
-                       session: AsyncSession = Depends(get_session)):
+async def update_user(
+    user_id: str, req: UpdateUserRequest, session: AsyncSession = Depends(get_session)
+):
     data = {k: v for k, v in req.model_dump().items() if v is not None}
     user = await crud.update_user(session, user_id, **data)
     if not user:
@@ -73,8 +76,9 @@ async def update_user(user_id: str, req: UpdateUserRequest,
 
 
 @router.post("/{user_id}/memory")
-async def add_memory(user_id: str, req: MemoryRequest,
-                      session: AsyncSession = Depends(get_session)):
+async def add_memory(
+    user_id: str, req: MemoryRequest, session: AsyncSession = Depends(get_session)
+):
     mem = await crud.add_memory(session, user_id, req.memory_type, req.content)
     return {"id": mem.id, "status": "stored"}
 
@@ -82,13 +86,29 @@ async def add_memory(user_id: str, req: MemoryRequest,
 @router.get("/{user_id}/memories")
 async def get_memories(user_id: str, session: AsyncSession = Depends(get_session)):
     mems = await crud.get_memories(session, user_id)
-    return [{"id": m.id, "memory_type": m.memory_type, "content": m.content,
-             "created_at": str(m.created_at)} for m in mems]
+    return [
+        {
+            "id": m.id,
+            "memory_type": m.memory_type,
+            "content": m.content,
+            "created_at": str(m.created_at),
+        }
+        for m in mems
+    ]
 
 
 @router.get("/{user_id}/applications")
 async def get_applications(user_id: str, session: AsyncSession = Depends(get_session)):
     apps = await crud.get_applications(session, user_id)
-    return [{"id": a.id, "company_name": a.company_name, "job_title": a.job_title,
-             "status": a.status, "applied_date": a.applied_date,
-             "notes": a.notes or "", "created_at": str(a.created_at)} for a in apps]
+    return [
+        {
+            "id": a.id,
+            "company_name": a.company_name,
+            "job_title": a.job_title,
+            "status": a.status,
+            "applied_date": a.applied_date,
+            "notes": a.notes or "",
+            "created_at": str(a.created_at),
+        }
+        for a in apps
+    ]

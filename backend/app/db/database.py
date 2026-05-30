@@ -1,6 +1,7 @@
 """Async SQLAlchemy database engine and session management."""
 
 import os
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -21,6 +22,14 @@ async def get_session() -> AsyncSession:
 
 async def init_db():
     """Create all tables."""
-    from app.db.models import User, SourceConnection, Conversation, GraphSnapshot, UserMemory, TrackedApplication  # noqa
+    from app.db.models import (
+        User,
+        SourceConnection,
+        Conversation,
+        GraphSnapshot,
+        UserMemory,
+        TrackedApplication,
+    )  # noqa
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

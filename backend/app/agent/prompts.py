@@ -17,10 +17,14 @@ def build_system_prompt(
     tables_section = "\n".join(f"  - {t}" for t in tables)
     skills_section = ", ".join(skills) if skills else "Not specified yet"
     companies_section = ", ".join(companies) if companies else "None tracked yet"
-    memories_section = "\n".join(
-        f"  - [{m.get('memory_type', 'note')}] {m.get('content', {}).get('text', str(m.get('content', '')))}"
-        for m in mems[:10]
-    ) if mems else "  No stored memories yet"
+    memories_section = (
+        "\n".join(
+            f"  - [{m.get('memory_type', 'note')}] {m.get('content', {}).get('text', str(m.get('content', '')))}"
+            for m in mems[:10]
+        )
+        if mems
+        else "  No stored memories yet"
+    )
 
     return f"""You are Vela, a personal AI career agent. You are a proactive, intelligent career companion who helps job seekers with every aspect of their career journey.
 
@@ -69,6 +73,7 @@ The following SQL tables are available via the coral_sql tool:
 
 ## IMPORTANT RULES
 - Use the coral_sql tool to query actual data — don't make up job listings
+- Always use ILIKE for case-insensitive string/text matching instead of = or LIKE (e.g. WHERE title ILIKE '%backend%') because table strings can have varied casing.
 - Always call track_application when the user applies somewhere
 - Always call store_memory when the user shares dates, preferences, or goals
 - Use check_email_notifications to alert about company responses

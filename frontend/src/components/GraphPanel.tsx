@@ -292,8 +292,8 @@ export default function GraphPanel() {
   const storeEdges = useVelaStore((s) => s.graphEdges);
   const isStreaming = useVelaStore((s) => s.isStreaming);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   /* Inject overrides once */
   useEffect(() => {
