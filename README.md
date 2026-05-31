@@ -1,10 +1,10 @@
 <table width="100%" border="0" cellspacing="0" cellpadding="0">
   <tr>
     <td>
-      <img src="doc/Images/logo-vela.png" alt="Pulse" width="100%" style="border-radius: 12px;" />
+      <img src="doc/Images/VELA Banner.png" alt="VELA" width="100%" style="border-radius: 12px;" />
     </td>
     <td width="110" align="right" valign="middle" style="padding-left:16px;">
-      <img src="doc/Images/VELA Banner.png" alt="Pulse Logo" width="90" />
+      <img src="doc/Images/logo-vela.png" alt="VELA Logo" width="90" style="border-radius: 8px;" />
     </td>
   </tr>
 </table>
@@ -29,13 +29,13 @@ Job searching fails for three reasons: fragmented data, manual repetition, and z
 
 ## Landing Page
 
-![VELA Landing Page](https://github.com/Priyank911/VELA/raw/main/doc/Images/landing.png)
+![VELA Landing Page](doc/Images/landing.png)
 
 The landing page communicates VELA's core premise — a single terminal-native command center for your entire career pipeline. It introduces the Coral SQL data integration layer, the agentic reasoning loop, and the live visualization interface before prompting users to connect their data sources and run their first query.
 
 ## Dashboard
 
-![VELA Dashboard](https://github.com/Priyank911/VELA/raw/main/doc/Images/dashboard.png)
+![VELA Dashboard](doc/Images/dashboard.png)
 
 The dashboard is split into three panels. The left sidebar holds navigation and connector status — each integrated source (Gmail, Calendar, Notion, Jobs) shows live connection health. The center panel renders the terminal-style chat interface where every prompt and streamed agent response appears in sequence. The right panel hosts the React Flow reasoning graph, which populates nodes dynamically as the agent selects and executes tools, giving full transparency into every reasoning step.
 
@@ -80,10 +80,17 @@ graph TD
 
 VELA uses Coral SQL as its universal data translation layer. Rather than building bespoke API clients for every integration, VELA writes plain SQL against virtual tables that Coral SQL maps to live API calls. Below is a full breakdown of every query pattern the agent executes.
 
-### Query Flow
+### Live Query Flow
+
+![Coral SQL Query Flow](doc/Images/query.png)
+
+The diagram above shows a real agent turn: the user asks VELA to find backend roles and draft a recruiter email. The agent fires `search_jobs` via Coral SQL against `jobs.listings`, then pulls the recruiter's email thread from `gmail.inbox`, stores the application in the local SQLite memory, and synthesizes the outreach draft — all in a single reasoning pass, visible node-by-node in the reasoning graph.
+
+### Query Sequence
 
 ```mermaid
 sequenceDiagram
+    participant U as User
     participant A as Agent Engine
     participant C as Coral SQL Engine
     participant G as Gmail API
@@ -91,23 +98,29 @@ sequenceDiagram
     participant N as Notion API
     participant M as Memory DB (SQLite)
 
-    A->>C: SELECT subject, sender FROM gmail.inbox WHERE unread = true
-    C->>G: GET /gmail/v1/users/me/messages?q=is:unread
-    G-->>C: message list
+    U->>A: "Find backend roles at fintech and draft cold email"
+    A->>C: SELECT title, company, url FROM jobs.listings WHERE keyword='backend engineer'
+    C->>J: GET /jobs/search?q=backend+engineer
+    J-->>C: [{title, company, url}, ...]
+    C-->>A: job results
+
+    A->>C: SELECT subject, sender FROM gmail.inbox WHERE sender LIKE '%stripe%'
+    C->>G: GET /gmail/v1/users/me/messages?q=from:stripe
+    G-->>C: thread list
     C-->>A: [{subject, sender}, ...]
 
-    A->>C: SELECT title, company, location FROM jobs.listings WHERE keyword='backend engineer'
-    C->>J: GET /jobs/search?q=backend+engineer
-    J-->>C: job results
-    C-->>A: [{title, company, location}, ...]
-
-    A->>M: INSERT INTO memories (key, value) VALUES ('goal', 'land SWE role at fintech')
+    A->>M: INSERT INTO memories (key, value) VALUES ('target_role', 'backend @ fintech')
     M-->>A: OK
 
-    A->>C: SELECT url, title FROM notion.pages WHERE tag = 'job-prep'
+    A->>C: SELECT title, url FROM notion.pages WHERE tag = 'job-prep'
     C->>N: POST /notion/v1/databases/:id/query
-    N-->>C: page list
-    C-->>A: [{url, title}, ...]
+    N-->>C: pages
+    C-->>A: prep notes
+
+    A->>M: INSERT INTO applications (company, role, status) VALUES ('Stripe','SWE','applied')
+    M-->>A: OK
+
+    A-->>U: Streamed cold email draft + reasoning graph nodes
 ```
 
 ### SQL Query Reference
@@ -124,25 +137,25 @@ sequenceDiagram
 | `track_application` | `INSERT INTO applications (company, role, status, date) VALUES (?, ?, ?, ?)` | SQLite (local) | User logs or agent detects a new application |
 | `update_application` | `UPDATE applications SET status = ? WHERE company = ? AND role = ?` | SQLite (local) | User reports an interview or offer |
 | `list_applications` | `SELECT company, role, status, date FROM applications ORDER BY date DESC` | SQLite (local) | User asks for a pipeline overview |
-| `analyze_resume` | *(file parse + vector embed)* | Uploaded PDF | User uploads resume for gap analysis |
+| `analyze_resume` | *(file parse + chunk store)* | Uploaded PDF | User uploads resume for gap analysis |
 
 ### SQLite Schema
 
 ```sql
 -- Persistent memory store
 CREATE TABLE IF NOT EXISTS memories (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    key       TEXT    NOT NULL,
-    value     TEXT    NOT NULL,
+    id         INTEGER  PRIMARY KEY AUTOINCREMENT,
+    key        TEXT     NOT NULL,
+    value      TEXT     NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Application pipeline tracker
 CREATE TABLE IF NOT EXISTS applications (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    company    TEXT    NOT NULL,
-    role       TEXT    NOT NULL,
-    status     TEXT    DEFAULT 'applied',  -- applied | screening | interview | offer | rejected
+    id         INTEGER  PRIMARY KEY AUTOINCREMENT,
+    company    TEXT     NOT NULL,
+    role       TEXT     NOT NULL,
+    status     TEXT     DEFAULT 'applied', -- applied | screening | interview | offer | rejected
     url        TEXT,
     notes      TEXT,
     date       DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -151,7 +164,7 @@ CREATE TABLE IF NOT EXISTS applications (
 -- Resume store (sanitized text chunks)
 CREATE TABLE IF NOT EXISTS resume_chunks (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
-    chunk   TEXT NOT NULL,
+    chunk   TEXT    NOT NULL,
     section TEXT
 );
 ```
@@ -267,9 +280,11 @@ VELA/
 │       └── schema.py                 # Pydantic request/response models
 ├── doc/
 │   └── Images/
+│       ├── logo-vela.png
+│       ├── VELA Banner.png
 │       ├── landing.png
 │       ├── dashboard.png
-│       └── reasoning-graph.png
+│       └── query-flow.png
 ├── .env.example
 ├── .gitignore
 ├── docker-compose.yml
@@ -415,6 +430,11 @@ Planned iterations include expanding the connector ecosystem to support LinkedIn
 *Stop managing spreadsheets. Start commanding your career.*
 
 ---
-
-![VELA Logo](https://github.com/Priyank911/VELA/raw/main/frontend/public/logo.png)  
-Built by [Priyank911](https://github.com/Priyank911)
+<div align="center">
+  <img src="doc/Images/logo-vela.png" alt="VELA" width="52" />
+  <br>
+  <b>Built by</b>
+  <a href="https://github.com/Priyank911">Priyank911</a>
+  |
+  <a href="https://github.com/Jay2219">Jay2219</a>
+</div>
