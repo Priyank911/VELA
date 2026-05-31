@@ -3,15 +3,14 @@
 from app.connectors.calendar import CalendarConnector
 from app.connectors.gmail import GmailConnector
 from app.connectors.jobs import JobsConnector
-from app.connectors.linkedin import LinkedInConnector
 from app.connectors.notion import NotionConnector
 
+# LinkedIn removed — requires paid API access not available in free tier
 CONNECTOR_REGISTRY = {
     "jobs": JobsConnector,
     "gmail": GmailConnector,
     "google_calendar": CalendarConnector,
     "notion": NotionConnector,
-    "linkedin": LinkedInConnector,
 }
 
 

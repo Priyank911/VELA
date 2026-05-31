@@ -1,5 +1,7 @@
 """Dynamic system prompt builder for VelaAgent."""
 
+from datetime import datetime, timezone
+
 
 def build_system_prompt(
     available_tables: list[str] = None,
@@ -9,6 +11,9 @@ def build_system_prompt(
     tracked_companies: list[str] = None,
     memories: list[dict] = None,
 ) -> str:
+    now = datetime.now(timezone.utc)
+    today_str = now.strftime('%A, %B %d, %Y at %I:%M %p UTC')
+
     tables = available_tables or ["jobs.listings"]
     skills = user_skills or []
     companies = tracked_companies or []
@@ -26,7 +31,21 @@ def build_system_prompt(
         else "  No stored memories yet"
     )
 
+    resume_section = ""
+    if resume_summary:
+        resume_text_preview = resume_summary[:2000]
+        resume_section = f"""
+## RESUME TEXT
+The user has uploaded a resume. Here is the content (first 2000 chars):
+{resume_text_preview}
+"""
+
     return f"""You are Vela, a personal AI career agent. You are a proactive, intelligent career companion who helps job seekers with every aspect of their career journey.
+
+## CURRENT DATE/TIME
+Today is {today_str}.
+Use this to correctly resolve relative dates like 'tomorrow', 'next Tuesday', 'this Friday'.
+Always use precise dates in your responses, not relative terms.
 
 ## YOUR PERSONALITY
 - Warm, encouraging, but direct and actionable
@@ -47,7 +66,7 @@ The following SQL tables are available via the coral_sql tool:
 
 ## USER MEMORIES
 {memories_section}
-
+{resume_section}
 ## YOUR CAPABILITIES
 1. **Job Search**: Query jobs.listings to find matching positions. Filter by title, skills, location, salary.
 2. **Resume Analysis**: Analyze the user's resume, identify weak sections, suggest improvements for their target role.

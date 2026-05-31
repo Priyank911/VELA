@@ -126,6 +126,18 @@ export async function getConversationHistory(
   return apiFetch<Conversation>(`/api/conversations/${conversationId}/history`);
 }
 
+// ---- Resume ----
+
+export async function uploadResume(
+  userId: string,
+  resumeText: string
+): Promise<{ status: string; length: number }> {
+  return apiFetch("/api/users/" + userId + "/resume", {
+    method: "POST",
+    body: JSON.stringify({ resume_text: resumeText }),
+  });
+}
+
 // ---- Health ----
 
 export async function checkHealth(): Promise<{ status: string }> {

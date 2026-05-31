@@ -25,11 +25,13 @@ class VelaAgent:
         conversation_id: str,
         connected_sources: list[str] = None,
         user_context: dict = None,
+        conversation_history: list = None,
     ):
         self.user_id = user_id
         self.conversation_id = conversation_id
         self.connected_sources = connected_sources or ["jobs"]
         self.user_context = user_context or {}
+        self.conversation_history = conversation_history or []
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.gemini_key = os.getenv("GEMINI_API_KEY", "")
         self.use_mock = not (bool(self.anthropic_key) or bool(self.gemini_key))
@@ -121,7 +123,13 @@ class VelaAgent:
             memories=self.user_context.get("memories", []),
         )
 
-        messages = [{"role": "user", "content": user_message}]
+        # Build messages from conversation history
+        messages = []
+        for msg in self.conversation_history[:-1]:  # exclude current message (already added)
+            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+        # Add current message
+        messages.append({"role": "user", "content": user_message})
+
         tool_call_count = 0
         start_time = time.monotonic()
         sm = stream_manager
@@ -268,8 +276,13 @@ class VelaAgent:
         start_time = time.monotonic()
         sm = stream_manager
 
-        # Build initial conversation history using raw dicts for version compatibility
-        messages = [{"role": "user", "parts": [user_message]}]
+        # Build messages from conversation history
+        messages = []
+        for msg in self.conversation_history[:-1]:  # exclude current message (already added)
+            role = "user" if msg.get("role") == "user" else "model"
+            messages.append({"role": role, "parts": [msg.get("content", "")]})
+        # Add current message
+        messages.append({"role": "user", "parts": [user_message]})
 
         try:
             while tool_call_count < self.MAX_TOOL_CALLS:
@@ -455,13 +468,44 @@ class VelaAgent:
         elif tool_name == "check_email_notifications":
             return coral_executor.execute_sql("SELECT * FROM gmail.inbox LIMIT 10")
 
+        elif tool_name == "store_memory":
+            from app.db.database import async_session_factory
+            from app.db import crud
+            async with async_session_factory() as s:
+                mem = await crud.add_memory(
+                    s, self.user_id,
+                    tool_input.get("memory_type", "note"),
+                    {"text": tool_input.get("content", ""), "date": tool_input.get("date", "")}
+                )
+            return {"status": "stored", "memory_id": mem.id, "type": tool_input.get("memory_type")}
+
+        elif tool_name == "track_application":
+            from app.db.database import async_session_factory
+            from app.db import crud
+            async with async_session_factory() as s:
+                app = await crud.add_application(
+                    s, self.user_id,
+                    company_name=tool_input.get("company_name", ""),
+                    job_title=tool_input.get("job_title", ""),
+                    status=tool_input.get("status", "applied"),
+                    notes=tool_input.get("notes", "")
+                )
+            return {"status": "tracked", "application_id": app.id}
+
+        elif tool_name == "schedule_event":
+            from app.db.database import async_session_factory
+            from app.db import crud
+            async with async_session_factory() as s:
+                mem = await crud.add_memory(
+                    s, self.user_id, "meeting",
+                    {"title": tool_input.get("title", ""), "date": tool_input.get("date", ""), "time": tool_input.get("time", ""), "duration": tool_input.get("duration_minutes", 60)}
+                )
+            return {"status": "scheduled", "event_title": tool_input.get("title"), "date": tool_input.get("date")}
+
         elif tool_name in (
             "draft_email",
             "analyze_resume",
-            "store_memory",
-            "track_application",
             "search_youtube",
-            "schedule_event",
             "get_company_info",
         ):
             return {"status": "success", "tool": tool_name, "input": tool_input}
@@ -521,7 +565,7 @@ class VelaAgent:
         answer_id = self._next_node_id()
         await sm.emit_graph_node(
             self.conversation_id,
-            {"id": answer_id, "type": "answer", "label": "Complete ✓", "status": "complete"},
+            {"id": answer_id, "type": "answer", "label": "Complete", "status": "complete"},
         )
         await sm.emit_graph_edge(
             self.conversation_id,
@@ -623,41 +667,41 @@ class VelaAgent:
             },
         )
 
-        return """## 🎯 Top Job Matches Found
+        return """## TOP JOB MATCHES FOUND
 
 I searched across **jobs** and **LinkedIn** data sources. Here are your best matches:
 
-### 1. **Senior Backend Engineer** — Stripe
-- 📍 San Francisco, CA (Remote OK)
-- 💰 $180,000 - $250,000
-- 🔧 Python, Go, PostgreSQL, AWS
-- 📊 **92% match** with your profile
-- [View Listing →](https://stripe.com/careers)
+### 1. **Senior Backend Engineer** -- Stripe
+- Location: San Francisco, CA (Remote OK)
+- Salary: $180,000 - $250,000
+- Stack: Python, Go, PostgreSQL, AWS
+- Match: **92% match** with your profile
+- [View Listing ->](https://stripe.com/careers)
 
-### 2. **Staff Software Engineer** — Vercel
-- 📍 Remote (US)
-- 💰 $200,000 - $280,000
-- 🔧 TypeScript, Next.js, Node.js, Edge Computing
-- 📊 **87% match** with your profile
+### 2. **Staff Software Engineer** -- Vercel
+- Location: Remote (US)
+- Salary: $200,000 - $280,000
+- Stack: TypeScript, Next.js, Node.js, Edge Computing
+- Match: **87% match** with your profile
 
-### 3. **Senior Full-Stack Developer** — Notion
-- 📍 New York, NY (Hybrid)
-- 💰 $170,000 - $230,000
-- 🔧 React, TypeScript, PostgreSQL, Kotlin
-- 📊 **85% match** with your profile
+### 3. **Senior Full-Stack Developer** -- Notion
+- Location: New York, NY (Hybrid)
+- Salary: $170,000 - $230,000
+- Stack: React, TypeScript, PostgreSQL, Kotlin
+- Match: **85% match** with your profile
 
-### 4. **Platform Engineer** — Supabase
-- 📍 Remote (Global)
-- 💰 $160,000 - $220,000
-- 🔧 PostgreSQL, Go, TypeScript, Deno
-- 📊 **82% match** with your profile
+### 4. **Platform Engineer** -- Supabase
+- Location: Remote (Global)
+- Salary: $160,000 - $220,000
+- Stack: PostgreSQL, Go, TypeScript, Deno
+- Match: **82% match** with your profile
 
 ---
 
 **Next Steps:**
-- 📧 Want me to **draft outreach emails** for any of these?
-- 📝 Should I **analyze your resume** for these specific roles?
-- 📅 Want to **schedule interview prep** sessions?
+- Want me to **draft outreach emails** for any of these?
+- Should I **analyze your resume** for these specific roles?
+- Want to **schedule interview prep** sessions?
 """
 
     async def _mock_resume_analysis(self, claude_node_id: str) -> str:
@@ -684,26 +728,26 @@ I searched across **jobs** and **LinkedIn** data sources. Here are your best mat
             },
         )
 
-        return """## 📄 Resume Analysis Report
+        return """## RESUME ANALYSIS REPORT
 
-### Overall Score: **7.2/10** — Good foundation, needs strategic improvements
+### Overall Score: **7.2/10** -- Good foundation, needs strategic improvements
 
 ---
 
-### ✅ Strengths
+### STRENGTHS
 - **Technical Skills Section** is well-organized with relevant technologies
 - **Project descriptions** show quantifiable impact (good use of metrics)
 - Clean formatting and easy to scan
 
-### ⚠️ Areas to Improve
+### AREAS TO IMPROVE
 
-#### 1. **Summary/Objective Section** — Currently Missing
+#### 1. **Summary/Objective Section** -- Currently Missing
 > Add a 2-3 sentence professional summary at the top. Example:
 > *"Senior Backend Engineer with 3+ years building scalable fintech systems. Specialized in Python, PostgreSQL, and distributed architectures. Led a team of 4 engineers to deliver a payment processing system handling $2M+ daily transactions."*
 
 #### 2. **Quantify More Results**
-- ❌ "Improved API performance" → ✅ "Reduced API latency by 47% (800ms → 420ms) serving 50K+ daily requests"
-- ❌ "Built user authentication" → ✅ "Architected OAuth 2.0 auth system for 100K+ users with 99.9% uptime"
+- [X] "Improved API performance" -> [OK] "Reduced API latency by 47% (800ms -> 420ms) serving 50K+ daily requests"
+- [X] "Built user authentication" -> [OK] "Architected OAuth 2.0 auth system for 100K+ users with 99.9% uptime"
 
 #### 3. **Missing Keywords for Senior Roles**
 Add these terms (found in 80%+ of target job descriptions):
@@ -712,12 +756,12 @@ Add these terms (found in 80%+ of target job descriptions):
 - `Cross-functional collaboration`
 
 #### 4. **Experience Bullet Points**
-Use the **STAR format**: Situation → Task → Action → Result
+Use the **STAR format**: Situation -> Task -> Action -> Result
 Each bullet should start with a strong action verb.
 
 ---
 
-### 🎯 Tailored Suggestions for "Senior Backend Engineer" Roles
+### TAILORED SUGGESTIONS FOR "SENIOR BACKEND ENGINEER" ROLES
 1. Add a **"Technical Leadership"** section highlighting code reviews, mentoring, architecture decisions
 2. Include **open source contributions** if any
 3. Add a **"System Design"** project showcasing scalability thinking
@@ -740,7 +784,7 @@ Want me to help **rewrite specific sections**?
         await self._mock_tool_node("draft_email", claude_node_id, "email", 1)
         await self._mock_tool_node("get_company_info", claude_node_id, "linkedin", 1)
 
-        return """## ✉️ Outreach Email Draft
+        return """## EMAIL OUTREACH DRAFT
 
 Here's a personalized cold email for **Stripe**:
 
@@ -752,7 +796,7 @@ Here's a personalized cold email for **Stripe**:
 
 Hi Hiring Team,
 
-I'm a backend engineer with 3 years of experience building payment systems at a fintech startup, and I've been following Stripe's work on the Payment Intents API — the developer experience is genuinely the best I've seen in financial APIs.
+I'm a backend engineer with 3 years of experience building payment systems at a fintech startup, and I've been following Stripe's work on the Payment Intents API -- the developer experience is genuinely the best I've seen in financial APIs.
 
 At my current role, I architected a real-time transaction processing pipeline handling $2M+ daily volume with 99.97% uptime, using Python, PostgreSQL, and Redis. I also led the migration from a monolithic to microservices architecture, reducing deployment time from 45 minutes to under 5.
 
@@ -766,10 +810,10 @@ Best,
 ---
 
 **Why this works:**
-- ✅ Shows specific knowledge of Stripe's products
-- ✅ Leads with relevant, quantified experience
-- ✅ Clear ask with low commitment (15 min)
-- ✅ Professional but personal tone
+- [OK] Shows specific knowledge of Stripe's products
+- [OK] Leads with relevant, quantified experience
+- [OK] Clear ask with low commitment (15 min)
+- [OK] Professional but personal tone
 
 Want me to **customize this further** or **draft emails for other companies**?
 """
@@ -783,20 +827,20 @@ Want me to **customize this further** or **draft emails for other companies**?
             5,
             "SELECT * FROM google_calendar.events WHERE start_datetime >= NOW()",
         )
-        return """## 📅 Your Upcoming Schedule
+        return """## CALENDAR -- YOUR UPCOMING SCHEDULE
 
 ### This Week
 | Date | Time | Event | Type |
 |------|------|-------|------|
-| Mon, Jun 2 | 10:00 AM | **Stripe Phone Screen** | 🎯 Interview |
-| Tue, Jun 3 | 2:00 PM | **Portfolio Review Session** | 📝 Prep |
-| Wed, Jun 4 | 11:00 AM | **Career Coach Call** | 🤝 Networking |
-| Thu, Jun 5 | 3:00 PM | **System Design Practice** | 📚 Study |
-| Fri, Jun 6 | 9:00 AM | **Vercel Technical Round** | 🎯 Interview |
+| Mon, Jun 2 | 10:00 AM | **Stripe Phone Screen** | [TARGET] Interview |
+| Tue, Jun 3 | 2:00 PM | **Portfolio Review Session** | [NOTE] Prep |
+| Wed, Jun 4 | 11:00 AM | **Career Coach Call** | [CONNECT] Networking |
+| Thu, Jun 5 | 3:00 PM | **System Design Practice** | [STUDY] Study |
+| Fri, Jun 6 | 9:00 AM | **Vercel Technical Round** | [TARGET] Interview |
 
-### 🔔 Reminders
-- Stripe phone screen is in **2 days** — want me to generate a **prep plan**?
-- Vercel technical round needs **system design prep** — should I find practice problems?
+### REMINDERS
+- Stripe phone screen is in **2 days** -- want me to generate a **prep plan**?
+- Vercel technical round needs **system design prep** -- should I find practice problems?
 
 Want me to **schedule a prep session** or **set reminders**?
 """
@@ -804,13 +848,20 @@ Want me to **schedule a prep session** or **set reminders**?
     async def _mock_store_memory(self, claude_node_id: str, msg: str) -> str:
         await asyncio.sleep(0.3)
         await self._mock_tool_node("store_memory", claude_node_id, "memory", 1)
-        return f"""## ✅ Got It — Remembered!
+
+        # Include past context summary if conversation history is available
+        context_note = ""
+        if self.conversation_history and len(self.conversation_history) > 1:
+            past_count = len(self.conversation_history) - 1
+            context_note = f"\n\n*I also have context from {past_count} previous message(s) in this conversation.*"
+
+        return f"""## GOT IT -- REMEMBERED
 
 I've stored this in your memory:
 
-> 📌 *{msg}*
+> [PINNED] *{msg}*
 
-I'll remind you about this when it's relevant. You can always ask me "what do I have coming up?" and I'll pull from your stored memories.
+I'll remind you about this when it's relevant. You can always ask me "what do I have coming up?" and I'll pull from your stored memories.{context_note}
 
 Is there anything else you'd like me to remember?
 """
@@ -818,28 +869,28 @@ Is there anything else you'd like me to remember?
     async def _mock_youtube_search(self, claude_node_id: str) -> str:
         await asyncio.sleep(0.3)
         await self._mock_tool_node("search_youtube", claude_node_id, "youtube", 5)
-        return """## 🎥 Recommended Learning Videos
+        return """## VIDEO -- RECOMMENDED LEARNING VIDEOS
 
 Based on your skills and target roles, here are top picks:
 
 ### System Design (Most relevant for Senior roles)
-1. **"System Design Interview: Step-by-Step Guide"** — Tech Dummies Narayan
-   - ⏱ 45 min | 2.1M views | ⭐ 4.9
-   - [Watch →](https://youtube.com)
+1. **"System Design Interview: Step-by-Step Guide"** -- Tech Dummies Narayan
+   - Duration: 45 min | 2.1M views | Rating: 4.9
+   - [Watch ->](https://youtube.com)
 
-2. **"Designing a Payment System Like Stripe"** — Jordan Has No Life
-   - ⏱ 38 min | 890K views | ⭐ 4.8
+2. **"Designing a Payment System Like Stripe"** -- Jordan Has No Life
+   - Duration: 38 min | 890K views | Rating: 4.8
 
 ### Python Advanced
-3. **"Advanced Python Patterns for Backend Engineers"** — ArjanCodes
-   - ⏱ 25 min | 450K views | ⭐ 4.7
+3. **"Advanced Python Patterns for Backend Engineers"** -- ArjanCodes
+   - Duration: 25 min | 450K views | Rating: 4.7
 
 ### Interview Prep
-4. **"Top 10 Behavioral Questions for Senior Engineers"** — Exponent
-   - ⏱ 20 min | 1.2M views | ⭐ 4.8
+4. **"Top 10 Behavioral Questions for Senior Engineers"** -- Exponent
+   - Duration: 20 min | 1.2M views | Rating: 4.8
 
-5. **"How I Got Into FAANG as a Self-Taught Dev"** — Forrest Knight
-   - ⏱ 15 min | 2.5M views | ⭐ 4.9
+5. **"How I Got Into FAANG as a Self-Taught Dev"** -- Forrest Knight
+   - Duration: 15 min | 2.5M views | Rating: 4.9
 
 ---
 Want me to create a **study schedule** based on these?
@@ -848,7 +899,7 @@ Want me to create a **study schedule** based on these?
     async def _mock_company_info(self, claude_node_id: str) -> str:
         await asyncio.sleep(0.3)
         await self._mock_tool_node("get_company_info", claude_node_id, "linkedin", 1)
-        return """## 🏢 Company Deep Dive
+        return """## COMPANY DEEP DIVE
 
 ### Stripe
 | Detail | Info |
@@ -862,12 +913,12 @@ Want me to create a **study schedule** based on these?
 | **Tech Stack** | Ruby, Go, Python, Java, React |
 | **Culture** | Writing-intensive, high autonomy, low meetings |
 
-### 💡 Interview Tips
-- Stripe values **clear written communication** — practice writing technical docs
+### INTERVIEW TIPS
+- Stripe values **clear written communication** -- practice writing technical docs
 - Expect **system design** focused on payment reliability and scale
-- They look for **product thinking** — understand the business impact of technical decisions
+- They look for **product thinking** -- understand the business impact of technical decisions
 
-### 📰 Recent News
+### RECENT NEWS
 - Launched Stripe Billing v3 with usage-based pricing
 - Expanded to 5 new countries in SE Asia
 - Revenue grew 25% YoY
@@ -878,7 +929,7 @@ Want me to **find open roles** at Stripe or **draft an outreach email**?
     async def _mock_track_application(self, claude_node_id: str) -> str:
         await asyncio.sleep(0.3)
         await self._mock_tool_node("track_application", claude_node_id, "tracker", 1)
-        return """## 📋 Application Tracked!
+        return """## APPLICATION TRACKER -- APPLICATION TRACKED
 
 I've added this to your tracker:
 
@@ -886,16 +937,16 @@ I've added this to your tracker:
 |-------|-------|
 | **Company** | Stripe |
 | **Role** | Senior Backend Engineer |
-| **Status** | Applied ✅ |
+| **Status** | Applied [OK] |
 | **Date** | May 30, 2026 |
 
 ### Your Application Pipeline
 | Company | Role | Status | Applied |
 |---------|------|--------|---------|
-| Stripe | Sr. Backend Eng. | ✅ Applied | May 30 |
-| Vercel | Staff SWE | 🟡 Interviewing | May 25 |
-| Notion | Sr. Full-Stack | ✅ Applied | May 22 |
-| Supabase | Platform Eng. | 📝 Draft | — |
+| Stripe | Sr. Backend Eng. | [OK] Applied | May 30 |
+| Vercel | Staff SWE | [PENDING] Interviewing | May 25 |
+| Notion | Sr. Full-Stack | [OK] Applied | May 22 |
+| Supabase | Platform Eng. | [NOTE] Draft | -- |
 
 I'll monitor your Gmail for responses from **Stripe** and notify you immediately. Want me to set a **follow-up reminder** for next week?
 """
@@ -909,22 +960,22 @@ I'll monitor your Gmail for responses from **Stripe** and notify you immediately
             12,
             "SELECT * FROM gmail.inbox WHERE from_address LIKE '%stripe%' OR from_address LIKE '%vercel%'",
         )
-        return """## 📬 Email Notifications
+        return """## INBOX -- EMAIL NOTIFICATIONS
 
 I checked your inbox for responses from tracked companies:
 
-### 🔔 New Responses Found!
+### [ALERT] NEW RESPONSES FOUND
 
-#### 1. ✅ **Vercel** — Interview Invitation!
+#### 1. [OK] **Vercel** -- Interview Invitation!
 > **From:** talent@vercel.com
-> **Subject:** Next Steps — Technical Interview
+> **Subject:** Next Steps -- Technical Interview
 > **Received:** 2 hours ago
 >
 > *"We'd love to move forward with a technical interview. Are you available next Tuesday at 2 PM PST?"*
 
-**→ Shall I draft a confirmation reply?**
+**-> Shall I draft a confirmation reply?**
 
-#### 2. 📩 **Stripe** — Application Received
+#### 2. [MSG] **Stripe** -- Application Received
 > **From:** noreply@stripe.com
 > **Subject:** We received your application
 > **Received:** 1 day ago
@@ -932,7 +983,7 @@ I checked your inbox for responses from tracked companies:
 > *"Thank you for applying to the Senior Backend Engineer position..."*
 
 #### 3. No response yet from: **Notion** (applied 8 days ago)
-**→ Want me to draft a follow-up email?**
+**-> Want me to draft a follow-up email?**
 
 ---
 I'll keep monitoring and alert you to any new responses!
@@ -950,33 +1001,41 @@ I'll keep monitoring and alert you to any new responses!
         )
         await asyncio.sleep(0.3)
 
-        return """## 👋 Hey there! I'm Vela, your personal career agent.
+        # Reference conversation history if available
+        history_note = ""
+        if self.conversation_history and len(self.conversation_history) > 1:
+            past_msgs = [m for m in self.conversation_history[:-1] if m.get("role") == "user"]
+            if past_msgs:
+                last_topic = past_msgs[-1].get("content", "")[:80]
+                history_note = f"\n\nI remember we were previously discussing: *\"{last_topic}\"*. Feel free to pick up where we left off!\n"
+
+        return f"""## Hello! I'm Vela, your personal career agent.
 
 I'm here to help you with your entire career journey. Here's what I can do:
 
-### 🎯 **Job Search**
+### [TARGET] **Job Search**
 > *"Find me senior Python roles at product companies"*
 
-### 📄 **Resume Review**
+### RESUME **Resume Review**
 > *"Analyze my resume for backend engineering roles"*
 
-### ✉️ **Email Drafting**
+### EMAIL **Email Drafting**
 > *"Draft a cold email to Stripe's engineering team"*
 
-### 📅 **Calendar & Scheduling**
+### CALENDAR **Calendar & Scheduling**
 > *"What interviews do I have this week?"*
 
-### 🧠 **Memory**
+### MEMORY **Memory**
 > *"Remember my interview with Google is on June 5th"*
 
-### 🎥 **Learning**
+### VIDEO **Learning**
 > *"Suggest YouTube videos for system design prep"*
 
-### 🏢 **Company Research**
+### COMPANY **Company Research**
 > *"Tell me about Stripe's engineering culture"*
 
-### 📋 **Application Tracking**
+### APPLICATION TRACKER **Application Tracking**
 > *"Track that I applied to Vercel today"*
-
-**What would you like to start with?** I'd also love to know — *what role are you targeting?*
+{history_note}
+**What would you like to start with?** I'd also love to know -- *what role are you targeting?*
 """

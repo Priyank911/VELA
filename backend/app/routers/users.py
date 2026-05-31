@@ -112,3 +112,19 @@ async def get_applications(user_id: str, session: AsyncSession = Depends(get_ses
         }
         for a in apps
     ]
+
+
+class ResumeUploadRequest(BaseModel):
+    resume_text: str
+
+
+@router.post("/{user_id}/resume")
+async def upload_resume(
+    user_id: str, req: ResumeUploadRequest, session: AsyncSession = Depends(get_session)
+):
+    """Upload or update the user's resume text."""
+    user = await crud.update_user(session, user_id, resume_text=req.resume_text)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"status": "uploaded", "length": len(req.resume_text)}
+

@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useVelaStore } from "@/store/useVelaStore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { askAgent } from "@/lib/api";
+import { askAgent, uploadResume } from "@/lib/api";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export default function ChatPanel() {
   const [input, setInput] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     messages, addMessage, updateLastAssistant, isStreaming, setIsStreaming,
     user, conversationId, setConversationId, setSidebarView, clearGraph,
@@ -19,6 +22,88 @@ export default function ChatPanel() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // --- Resume file handling ---
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string || "");
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  };
+
+  const handleResumeFile = useCallback(async (file: File) => {
+    if (!user) return;
+
+    const validTypes = [
+      "text/plain", "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    const validExtensions = [".txt", ".md", ".pdf", ".doc", ".docx"];
+    const ext = "." + file.name.split(".").pop()?.toLowerCase();
+
+    if (!validTypes.includes(file.type) && !validExtensions.includes(ext)) {
+      setUploadStatus("Unsupported file type. Use .txt, .md, .pdf, or .docx");
+      setTimeout(() => setUploadStatus(null), 4000);
+      return;
+    }
+
+    setUploadStatus("Uploading resume...");
+
+    try {
+      // For now, read as text (PDF/DOCX would need server-side parsing)
+      const text = await readFileAsText(file);
+      if (!text.trim()) {
+        setUploadStatus("File appears empty. Try pasting resume text directly.");
+        setTimeout(() => setUploadStatus(null), 4000);
+        return;
+      }
+
+      await uploadResume(user.id, text);
+      setUploadStatus(`Resume uploaded: ${file.name}`);
+      setTimeout(() => setUploadStatus(null), 5000);
+
+      // Auto-ask to analyze the resume
+      setInput("Analyze my resume and suggest improvements");
+    } catch (err: any) {
+      setUploadStatus(`Upload failed: ${err.message}`);
+      setTimeout(() => setUploadStatus(null), 4000);
+    }
+  }, [user]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleResumeFile(files[0]);
+    }
+  }, [handleResumeFile]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleResumeFile(files[0]);
+    }
+    // Reset input so same file can be selected again
+    e.target.value = "";
+  }, [handleResumeFile]);
 
   const handleSend = async () => {
     if (!input.trim() || isStreaming || !user) return;
@@ -83,7 +168,63 @@ export default function ChatPanel() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0" style={{ background: "#0a0a0a" }}>
+    <div
+      className="flex-1 flex flex-col min-h-0 relative"
+      style={{ background: "#0a0a0a" }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {isDragging && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center"
+          style={{
+            background: "rgba(10,10,10,0.92)",
+            border: "2px dashed #ff8200",
+          }}
+        >
+          <div className="text-center">
+            <div
+              className="text-2xl mb-2"
+              style={{ color: "#ff8200", fontFamily: "VT323, monospace" }}
+            >
+              DROP RESUME FILE
+            </div>
+            <div
+              className="text-sm"
+              style={{ color: "rgba(255,130,0,0.5)", fontFamily: "JetBrains Mono, monospace" }}
+            >
+              .txt, .md, .pdf, .docx supported
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload status banner */}
+      {uploadStatus && (
+        <div
+          className="px-4 py-2 text-xs"
+          style={{
+            background: "rgba(255,130,0,0.08)",
+            borderBottom: "1px solid rgba(255,130,0,0.2)",
+            color: "#ff8200",
+            fontFamily: "JetBrains Mono, monospace",
+          }}
+        >
+          {"> "}{uploadStatus}
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt,.md,.pdf,.doc,.docx"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {messages.length === 0 && (
@@ -101,7 +242,31 @@ export default function ChatPanel() {
               Your personal AI career agent. Ask anything about jobs,
               resume improvement, interview prep, or career planning.
             </p>
-            <div className="grid grid-cols-2 gap-3 max-w-lg w-full mt-4">
+
+            {/* Resume upload card */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full max-w-md p-5 text-left transition-colors hover:bg-[rgba(255,130,0,0.04)]"
+              style={{
+                background: "#0a0a0a",
+                border: "1px dashed rgba(255,130,0,0.3)",
+              }}
+            >
+              <div
+                className="text-sm uppercase tracking-wider mb-1"
+                style={{ color: "#ff8200", fontFamily: "VT323, monospace", fontSize: "1.1rem" }}
+              >
+                {">"} UPLOAD RESUME
+              </div>
+              <div
+                className="text-xs"
+                style={{ color: "rgba(255,130,0,0.4)", fontFamily: "JetBrains Mono, monospace" }}
+              >
+                Drag and drop a file here, or click to browse. Supports .txt, .md, .pdf, .docx
+              </div>
+            </button>
+
+            <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
               {[
                 "> find senior backend roles",
                 "> analyze my resume",
@@ -193,6 +358,21 @@ export default function ChatPanel() {
         style={{ borderTop: "1px solid rgba(255,130,0,0.2)" }}
       >
         <div className="flex gap-3 items-end">
+          {/* Upload button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-3 py-3 transition-colors hover:bg-[rgba(255,130,0,0.08)]"
+            title="Upload resume"
+            style={{
+              border: "1px solid rgba(255,130,0,0.3)",
+              color: "rgba(255,130,0,0.5)",
+              fontFamily: "JetBrains Mono, monospace",
+              fontSize: "0.75rem",
+            }}
+          >
+            [+]
+          </button>
+
           <div className="flex-1 relative">
             <span
               className="absolute left-3 top-1/2 -translate-y-1/2 text-xs"

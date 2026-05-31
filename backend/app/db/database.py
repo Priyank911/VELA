@@ -29,6 +29,7 @@ async def init_db():
         GraphSnapshot,
         UserMemory,
         TrackedApplication,
+        JobListing,
     )  # noqa
 
     async with engine.begin() as conn:

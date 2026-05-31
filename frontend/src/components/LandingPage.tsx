@@ -906,7 +906,7 @@ export default function LandingPage() {
               textTransform: "uppercase",
             }}
           >
-            POWERED BY CORAL SQL + CLAUDE
+            POWERED BY CORAL SQL + Agent
           </span>
         </div>
       </main>

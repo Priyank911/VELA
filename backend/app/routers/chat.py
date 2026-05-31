@@ -35,6 +35,10 @@ async def ask_agent(req: AskRequest, session: AsyncSession = Depends(get_session
     # Save user message
     await crud.append_message(session, conv.id, "user", req.message)
 
+    # Reload conversation to get updated messages
+    conv = await crud.get_conversation(session, conv.id)
+    history = conv.messages or []
+
     # Get user context
     user = await crud.get_user(session, req.user_id)
     connections = await crud.get_connections(session, req.user_id)
@@ -58,6 +62,7 @@ async def ask_agent(req: AskRequest, session: AsyncSession = Depends(get_session
         conversation_id=conv.id,
         connected_sources=connected_sources,
         user_context=user_context,
+        conversation_history=history,
     )
 
     async def _run_agent():
