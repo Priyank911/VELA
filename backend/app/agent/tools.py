@@ -16,25 +16,7 @@ VELA_TOOLS = [
             "required": ["query"],
         },
     },
-    {
-        "name": "search_jobs",
-        "description": "Search job listings with filters. Returns matching positions.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string", "description": "Job title to search for"},
-                "location": {"type": "string", "description": "Location filter"},
-                "experience_level": {"type": "string", "description": "junior, mid, senior"},
-                "salary_min": {"type": "integer", "description": "Minimum salary"},
-                "keywords": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Skill keywords",
-                },
-            },
-            "required": ["title"],
-        },
-    },
+
     {
         "name": "draft_email",
         "description": "Generate a personalized outreach or follow-up email for a job opportunity or professional contact.",

@@ -36,16 +36,18 @@ export default function ChatPanel() {
   const handleResumeFile = useCallback(async (file: File) => {
     if (!user) return;
 
-    const validTypes = [
-      "text/plain", "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    const validExtensions = [".txt", ".md", ".pdf", ".doc", ".docx"];
     const ext = "." + file.name.split(".").pop()?.toLowerCase();
 
-    if (!validTypes.includes(file.type) && !validExtensions.includes(ext)) {
-      setUploadStatus("Unsupported file type. Use .txt, .md, .pdf, or .docx");
+    // Reject binary formats that can't be read as text in the browser
+    if (ext === ".pdf" || ext === ".doc" || ext === ".docx") {
+      setUploadStatus("PDF/DOCX not supported. Please upload a .txt or .md file, or paste resume text in chat.");
+      setTimeout(() => setUploadStatus(null), 6000);
+      return;
+    }
+
+    const validExtensions = [".txt", ".md"];
+    if (!validExtensions.includes(ext)) {
+      setUploadStatus("Unsupported file type. Use .txt or .md files.");
       setTimeout(() => setUploadStatus(null), 4000);
       return;
     }
@@ -53,7 +55,6 @@ export default function ChatPanel() {
     setUploadStatus("Uploading resume...");
 
     try {
-      // For now, read as text (PDF/DOCX would need server-side parsing)
       const text = await readFileAsText(file);
       if (!text.trim()) {
         setUploadStatus("File appears empty. Try pasting resume text directly.");
@@ -195,7 +196,7 @@ export default function ChatPanel() {
               className="text-sm"
               style={{ color: "rgba(255,130,0,0.5)", fontFamily: "JetBrains Mono, monospace" }}
             >
-              .txt, .md, .pdf, .docx supported
+              .txt and .md files supported
             </div>
           </div>
         </div>
@@ -220,7 +221,7 @@ export default function ChatPanel() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".txt,.md,.pdf,.doc,.docx"
+        accept=".txt,.md"
         className="hidden"
         onChange={handleFileSelect}
       />
@@ -262,7 +263,7 @@ export default function ChatPanel() {
                 className="text-xs"
                 style={{ color: "rgba(255,130,0,0.4)", fontFamily: "JetBrains Mono, monospace" }}
               >
-                Drag and drop a file here, or click to browse. Supports .txt, .md, .pdf, .docx
+                Drag and drop a file here, or click to browse. Supports .txt, .md files. For PDF, paste text directly in chat.
               </div>
             </button>
 
@@ -357,11 +358,11 @@ export default function ChatPanel() {
         className="px-6 py-4"
         style={{ borderTop: "1px solid rgba(255,130,0,0.2)" }}
       >
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-3 items-stretch">
           {/* Upload button */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-3 transition-colors hover:bg-[rgba(255,130,0,0.08)]"
+            className="flex items-center justify-center px-4 transition-colors hover:bg-[rgba(255,130,0,0.08)]"
             title="Upload resume"
             style={{
               border: "1px solid rgba(255,130,0,0.3)",
@@ -373,14 +374,15 @@ export default function ChatPanel() {
             [+]
           </button>
 
-          <div className="flex-1 relative">
+          <div className="flex-1 relative flex">
             <span
               className="absolute left-3 top-1/2 -translate-y-1/2 text-xs"
               style={{ color: "rgba(255,130,0,0.4)", fontFamily: "VT323, monospace" }}
             >
               {">"}
             </span>
-            <textarea
+            <input
+              type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -390,8 +392,7 @@ export default function ChatPanel() {
                 }
               }}
               placeholder="ask vela anything..."
-              rows={1}
-              className="w-full pl-7 pr-4 py-3 text-sm resize-none focus:outline-none transition-colors"
+              className="w-full pl-7 pr-4 py-3 text-sm focus:outline-none transition-colors"
               style={{
                 background: "#0a0a0a",
                 border: "1px solid rgba(255,130,0,0.3)",
@@ -405,7 +406,7 @@ export default function ChatPanel() {
           <button
             onClick={handleSend}
             disabled={!input.trim() || isStreaming}
-            className="px-5 py-3 text-sm tracking-widest uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#ffa940]"
+            className="flex items-center justify-center px-6 text-sm tracking-widest uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#ffa940]"
             style={{
               backgroundColor: "#ff8200",
               color: "#0a0a0a",

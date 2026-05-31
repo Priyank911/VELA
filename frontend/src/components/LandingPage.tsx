@@ -21,7 +21,7 @@ const FEATURES = [
     tag: "02",
     symbol: ">_",
     title: "RESUME ANALYSIS",
-    desc: "Upload once. Get targeted rewrites, keyword gaps, and ATS scoring powered by Claude reasoning.",
+    desc: "Upload once. Get targeted rewrites, keyword gaps, and ATS scoring powered by Agent reasoning.",
   },
   {
     tag: "03",
@@ -57,6 +57,19 @@ const TERMINAL_LINES = [
   { label: "ANSWER", text: "> 4 results // 92% confidence", status: "OK", delay: 3800 },
 ];
 
+const PIXEL_MAP = [
+  "0000011110000000",
+  "0001111111000000",
+  "0011110011110000",
+  "0111100001111000",
+  "1111000000111100",
+  "0111110001111000",
+  "0011111011110000",
+  "0000111111000000",
+];
+
+const KEY_ROWS = [10, 9, 8];
+
 /* ────────────────────────────────────────────────────────────
    STYLES — inline style objects for the OpenFlip design system
    ──────────────────────────────────────────────────────────── */
@@ -81,7 +94,6 @@ const FONT_VT = "'VT323', monospace";
 const FONT_JB = "'JetBrains Mono', 'Fira Code', 'Courier New', monospace";
 
 const pixelShadow = `4px 4px 0 0 ${SHADOW_COLOR}`;
-const glowCyan = `0 0 20px ${CYAN_15}`;
 
 /* ────────────────────────────────────────────────────────────
    COMPONENT
@@ -246,17 +258,13 @@ export default function LandingPage() {
       >
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span
+          <img
+            src="/logo.png"
+            alt="VELA"
             style={{
-              color: AMBER,
-              fontFamily: FONT_VT,
-              fontSize: "28px",
-              letterSpacing: "0.18em",
-              lineHeight: 1,
+              height: "28px",
             }}
-          >
-            VELA
-          </span>
+          />
           <span
             style={{
               color: AMBER_40,
@@ -522,246 +530,133 @@ export default function LandingPage() {
             </form>
           </div>
 
-          {/* ── Right Column — Terminal Simulation ── */}
-          <div
-            style={{
-              background: INK,
-              border: `1px solid ${AMBER}`,
-              boxShadow: `${pixelShadow}, ${glowCyan}`,
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {/* Terminal title bar */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 16px",
-                borderBottom: `1px solid ${AMBER_20}`,
-                background: AMBER_06,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span
-                  style={{
-                    fontFamily: FONT_VT,
-                    fontSize: "16px",
-                    letterSpacing: "0.14em",
-                    color: AMBER,
-                  }}
-                >
-                  VELA
-                </span>
-                <span
-                  style={{
-                    fontFamily: FONT_JB,
-                    fontSize: "10px",
-                    letterSpacing: "0.1em",
-                    color: AMBER_40,
-                  }}
-                >
-                  //AGENT
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span
-                  style={{
-                    width: "6px",
-                    height: "6px",
-                    borderRadius: "50%",
-                    background: GREEN,
-                    display: "inline-block",
-                    boxShadow: `0 0 4px ${GREEN}`,
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: FONT_JB,
-                    fontSize: "10px",
-                    letterSpacing: "0.12em",
-                    color: CYAN,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  LIVE
-                </span>
-              </div>
-            </div>
+          {/* ── Right Column — Pixel Art Retro PC ── */}
+          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: "8px" }}>
+            <div className="retro-computer">
 
-            {/* Terminal content */}
-            <div
-              style={{
-                padding: "20px 16px",
-                fontFamily: FONT_JB,
-                fontSize: "12px",
-                lineHeight: 1.9,
-              }}
-            >
-              {/* Header scan line */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingBottom: "12px",
-                  marginBottom: "12px",
-                  borderBottom: `1px solid ${AMBER_10}`,
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: FONT_JB,
-                    fontSize: "10px",
-                    letterSpacing: "0.14em",
-                    color: AMBER_50,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  VELA://ANALYZE
-                </span>
-                <span
-                  style={{
-                    fontFamily: FONT_JB,
-                    fontSize: "10px",
-                    letterSpacing: "0.12em",
-                    color: GREEN,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  READY
-                </span>
-              </div>
+              {/* Monitor + Tower row */}
+              <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
 
-              {/* Agent reasoning lines */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {TERMINAL_LINES.map((line, i) => {
-                  const isVisible = i < visibleLines;
-                  const labelColor =
-                    line.label === "ANSWER"
-                      ? GREEN
-                      : line.label === "SYNTH"
-                      ? HIGHLIGHT
-                      : line.label === "CORAL"
-                      ? CYAN
-                      : AMBER;
-                  const statusColor = line.status === "OK" ? GREEN : AMBER_60;
+                {/* ─── MONITOR ─── */}
+                <div className="pc-monitor">
+                  {/* Wide bezel */}
+                  <div className="pc-bezel">
+                    <div className="pc-screen">
+                      {/* Scanlines */}
+                      <div style={{ position:"absolute", inset:0, background:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.18) 2px,rgba(0,0,0,0.18) 4px)", pointerEvents:"none", zIndex:5 }} />
+                      {/* Content */}
+                      <div style={{ position:"relative", zIndex:3, padding:"8px", display:"flex", flexDirection:"column", gap:"5px", fontFamily:FONT_JB }}>
+                        {/* Header */}
+                        <div style={{ display:"flex", justifyContent:"space-between", paddingBottom:"5px", borderBottom:`1px solid ${AMBER_10}`, fontSize:"8px", letterSpacing:"0.12em", textTransform:"uppercase" }}>
+                          <span style={{ color:AMBER_50 }}>VELA://ANALYZE</span>
+                          <span style={{ color:GREEN }}>● READY</span>
+                        </div>
 
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        opacity: isVisible ? 1 : 0,
-                        transform: isVisible
-                          ? "translateX(0)"
-                          : "translateX(-8px)",
-                        transition: "opacity 0.4s ease, transform 0.4s ease",
-                      }}
-                    >
-                      {/* Status dot */}
-                      <span
-                        style={{
-                          width: "5px",
-                          height: "5px",
-                          borderRadius: "50%",
-                          background: isVisible ? GREEN : AMBER,
-                          display: "inline-block",
-                          flexShrink: 0,
-                          boxShadow: isVisible
-                            ? `0 0 4px ${GREEN}`
-                            : `0 0 4px ${AMBER}`,
-                        }}
-                      />
-                      {/* Label */}
-                      <span
-                        style={{
-                          color: labelColor,
-                          fontFamily: FONT_JB,
-                          fontSize: "11px",
-                          letterSpacing: "0.08em",
-                          fontWeight: "bold",
-                          minWidth: "52px",
-                        }}
-                      >
-                        [{line.label}]
-                      </span>
-                      {/* Text */}
-                      <span style={{ color: AMBER_60, flex: 1 }}>
-                        {line.text}
-                      </span>
-                      {/* Status */}
-                      <span
-                        style={{
-                          color: statusColor,
-                          fontFamily: FONT_JB,
-                          fontSize: "10px",
-                          letterSpacing: "0.1em",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {line.status}
-                      </span>
+                        {/* Terminal lines */}
+                        <div style={{ display:"flex", flexDirection:"column", gap:"3px" }}>
+                          {TERMINAL_LINES.map((line, i) => {
+                            const isVisible = i < visibleLines;
+                            const labelColor = line.label === "ANSWER" ? GREEN : line.label === "SYNTH" ? HIGHLIGHT : line.label === "CORAL" ? CYAN : AMBER;
+                            return (
+                              <div key={i} style={{ display:"flex", alignItems:"center", gap:"5px", opacity: isVisible ? 1 : 0, transform: isVisible ? "none" : "translateX(-6px)", transition:"opacity 0.4s ease,transform 0.4s ease" }}>
+                                <span style={{ width:"4px", height:"4px", borderRadius:"50%", background: isVisible ? GREEN : AMBER_40, boxShadow: isVisible ? `0 0 3px ${GREEN}` : "none", flexShrink:0 }} />
+                                <span style={{ color:labelColor, fontSize:"8px", fontWeight:"bold", minWidth:"44px", letterSpacing:"0.06em" }}>[{line.label}]</span>
+                                <span style={{ color:AMBER_60, flex:1, fontSize:"8px", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{line.text}</span>
+                                <span style={{ color: line.status === "OK" ? GREEN : AMBER_60, fontSize:"8px", fontWeight:"bold" }}>{line.status}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Pixel grid */}
+                        <div style={{ display:"flex", flexDirection:"column", gap:"3px" }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:"7px", letterSpacing:"0.14em", textTransform:"uppercase", color:AMBER_50 }}>
+                            <span>PROJECT GRID</span>
+                            <span style={{ color:GREEN }}>SYNC</span>
+                          </div>
+                          <div className="pixel-panel">
+                            <div className="pixel-screen">
+                              {PIXEL_MAP.map((row, rowIndex) => (
+                                <div key={`pixel-row-${rowIndex}`} className="pixel-row">
+                                  {row.split("").map((cell, cellIndex) => (
+                                    <span key={`pixel-${rowIndex}-${cellIndex}`} className={`pixel-cell ${cell === "1" ? "on" : ""}`} style={{ animationDelay:`${(rowIndex + cellIndex) * 0.05}s` }} />
+                                  ))}
+                                </div>
+                              ))}
+                              <div className="pixel-scan" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Progress */}
+                        <div style={{ display:"flex", alignItems:"center", gap:"6px", paddingTop:"5px", borderTop:`1px solid ${AMBER_10}` }}>
+                          <span style={{ fontSize:"7px", letterSpacing:"0.1em", textTransform:"uppercase", color: progressWidth >= 100 ? GREEN : AMBER_50, minWidth:"28px" }}>
+                            {progressWidth >= 100 ? "DONE" : "WORK"}
+                          </span>
+                          <div style={{ flex:1, height:"3px", background:AMBER_10, overflow:"hidden" }}>
+                            <div style={{ height:"100%", width:`${progressWidth}%`, background:`linear-gradient(90deg,${AMBER},${CYAN})`, transition:"width 0.6s ease-out" }} />
+                          </div>
+                          <span style={{ fontSize:"7px", color:AMBER, minWidth:"22px", textAlign:"right" }}>{Math.round(progressWidth)}%</span>
+                        </div>
+                      </div>
                     </div>
-                  );
-                })}
+                  </div>
+
+                  {/* Monitor bottom bar */}
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"5px 10px 7px", background:"#c8b898", borderTop:"2px solid #8a7558" }}>
+                    <div style={{ display:"flex", gap:"5px", alignItems:"center" }}>
+                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:GREEN, boxShadow:`0 0 5px ${GREEN}`, display:"block" }} />
+                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#6a5040", display:"block" }} />
+                    </div>
+                    <span style={{ fontFamily:FONT_JB, fontSize:"9px", fontWeight:800, color:"#7a6548", letterSpacing:"0.12em" }}>VELA-80</span>
+                    <div style={{ width:"48px", height:"9px", background:"#d4c5a9", border:"2px solid #5a4030", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <div style={{ width:"34px", height:"2px", background:"#2a1810" }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ─── TOWER ─── */}
+                <div className="pc-tower">
+                  {/* Orange cartridge slot */}
+                  <div style={{ height:"11px", background:"linear-gradient(180deg,#c47a20,#a05a10)", border:"2px solid #5a4030", marginBottom:"4px", position:"relative", overflow:"hidden" }}>
+                    <div style={{ position:"absolute", inset:"2px", background:"repeating-linear-gradient(90deg,transparent,transparent 4px,rgba(255,130,0,0.3) 4px,rgba(255,130,0,0.3) 5px)" }} />
+                  </div>
+                  {/* Top vents */}
+                  <div style={{ height:"22px", background:"repeating-linear-gradient(180deg,#5a4030 2px,transparent 2px,transparent 6px)", border:"1px solid #5a4030", marginBottom:"4px" }} />
+                  {/* Drive bays */}
+                  <div style={{ display:"flex", flexDirection:"column", gap:"3px", marginBottom:"6px" }}>
+                    {[{ h:10, r:6 }, { h:8, r:4 }].map((d, di) => (
+                      <div key={di} style={{ height:`${d.h}px`, background:"#c8b898", border:"2px solid #5a4030", position:"relative" }}>
+                        <span style={{ position:"absolute", right:"5px", top:"50%", transform:"translateY(-50%)", width:`${d.r}px`, height:`${d.r}px`, borderRadius:"50%", background:"#a09080", border:"1px solid #5a4030", display:"block" }} />
+                      </div>
+                    ))}
+                  </div>
+                  {/* Power buttons */}
+                  <div style={{ display:"flex", gap:"4px", justifyContent:"center", marginBottom:"6px" }}>
+                    <span style={{ width:"11px", height:"11px", borderRadius:"50%", background:"#cc3333", border:"2px solid #4a2020", boxShadow:"0 0 4px rgba(204,51,51,0.6),inset 0 -1px 0 rgba(0,0,0,0.3)", display:"block" }} />
+                    <span style={{ width:"11px", height:"11px", borderRadius:"50%", background:GREEN, border:"2px solid #16a34a", boxShadow:`0 0 4px rgba(34,197,94,0.6),inset 0 -1px 0 rgba(0,0,0,0.3)`, display:"block" }} />
+                  </div>
+                  {/* Bottom vents */}
+                  <div style={{ flex:1, background:"repeating-linear-gradient(180deg,#5a4030 2px,transparent 2px,transparent 6px)", border:"1px solid #5a4030", minHeight:"20px" }} />
+                </div>
               </div>
 
-              {/* Progress bar */}
-              <div
-                style={{
-                  marginTop: "16px",
-                  paddingTop: "12px",
-                  borderTop: `1px solid ${AMBER_10}`,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: FONT_JB,
-                    fontSize: "10px",
-                    letterSpacing: "0.1em",
-                    color: progressWidth >= 100 ? GREEN : AMBER_50,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {progressWidth >= 100 ? "COMPLETE" : "WORKING"}
-                </span>
-                <div
-                  style={{
-                    flex: 1,
-                    height: "4px",
-                    background: AMBER_10,
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${progressWidth}%`,
-                      background: `linear-gradient(90deg, ${AMBER}, ${CYAN})`,
-                      transition: "width 0.6s ease-out",
-                    }}
-                  />
+              {/* ─── KEYBOARD ─── */}
+              <div className="pc-keyboard">
+                {[14, 13, 12, 11].map((count, ri) => (
+                  <div key={ri} style={{ display:"flex", gap:"2px", paddingLeft:`${ri * 3}px` }}>
+                    {Array.from({ length: count }).map((_, ki) => (
+                      <span key={ki} style={{ flex:1, height:"9px", background:"#22c55e", border:"2px solid #16a34a", borderTopColor:"#4ade80", borderLeftColor:"#4ade80", boxShadow:"inset 0 -1px 0 rgba(0,0,0,0.25)", minWidth:0 }} />
+                    ))}
+                  </div>
+                ))}
+                <div style={{ display:"flex", gap:"2px", paddingLeft:"6px" }}>
+                  <span style={{ width:"18px", height:"9px", background:"#22c55e", border:"2px solid #16a34a", borderTopColor:"#4ade80", flexShrink:0 }} />
+                  <span style={{ flex:1, height:"9px", background:"#22c55e", border:"2px solid #16a34a", borderTopColor:"#4ade80" }} />
+                  <span style={{ width:"18px", height:"9px", background:"#22c55e", border:"2px solid #16a34a", borderTopColor:"#4ade80", flexShrink:0 }} />
                 </div>
-                <span
-                  style={{
-                    fontFamily: FONT_JB,
-                    fontSize: "10px",
-                    letterSpacing: "0.08em",
-                    color: AMBER,
-                    minWidth: "32px",
-                    textAlign: "right",
-                  }}
-                >
-                  {Math.round(progressWidth)}%
-                </span>
               </div>
+
             </div>
           </div>
         </div>
@@ -923,32 +818,295 @@ export default function LandingPage() {
         button:hover:not(:disabled) {
           background: ${HIGHLIGHT} !important;
         }
+        .retro-computer {
+          width: min(100%, 320px);
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .retro-mon-block {
+          background: #d4c5b3;
+          padding: 12px;
+          border-radius: 8px;
+          border: 2px solid #5a4f40;
+          box-shadow: 
+            inset -2px -2px 0px 0px rgba(0,0,0,0.15),
+            inset 2px 2px 0px 0px rgba(255,255,255,0.4),
+            6px 6px 0px 0px rgba(0,0,0,0.4);
+        }
+        .crt-shell {
+          display: flex;
+          gap: 12px;
+          background: #d4c5b3;
+          height: clamp(200px, 38vw, 240px);
+        }
+        .crt-screen-bezel {
+          flex: 1;
+          background: #a39581;
+          padding: 8px;
+          border-radius: 8px 8px 8px 16px;
+          box-shadow: 
+            inset 3px 3px 0px 0px rgba(0,0,0,0.2),
+            inset -1px -1px 0px 0px rgba(255,255,255,0.2);
+          border: 2px solid #5a4f40;
+          display: flex;
+        }
+        .crt-screen {
+          background: #0f1712;
+          border-radius: 8px;
+          border: 2px solid #222;
+          box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+          padding: 8px;
+          flex: 1;
+          display: flex;
+          transform: perspective(600px) rotateX(1deg);
+        }
+        .crt-side-panel {
+          width: 50px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .crt-vent {
+          height: 44px;
+          background: repeating-linear-gradient(
+            180deg,
+            #5a4f40,
+            #5a4f40 3px,
+            transparent 3px,
+            transparent 6px
+          );
+          border: 2px solid #5a4f40;
+        }
+        .crt-branding {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          font-weight: 800;
+          color: #a39581;
+          text-shadow: 1px 1px 0px rgba(255,255,255,0.3);
+          letter-spacing: 0.1em;
+          text-align: left;
+        }
+        .crt-knobs {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+        }
+        .crt-knob {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 2px solid #5a4f40;
+          background: radial-gradient(circle at 35% 35%, #d4c5b3, #a39581);
+          box-shadow: inset 0 0 3px rgba(0,0,0,0.4), 1px 1px 0 rgba(0,0,0,0.2);
+        }
+        .crt-ports {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+        .crt-port {
+          width: 18px;
+          height: 6px;
+          background: #444;
+          border-radius: 2px;
+          box-shadow: inset 2px 2px 0 rgba(0,0,0,0.6);
+        }
+        .crt-bottom-panel {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-top: 10px;
+          margin-top: 8px;
+          border-top: 2px solid #a39581;
+        }
+        .crt-leds {
+          display: flex;
+          gap: 6px;
+        }
+        .crt-led {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #5a4f40;
+          box-shadow: inset 1px 1px 0 rgba(0,0,0,0.3);
+        }
+        .crt-led.active {
+          background: #22c55e;
+          box-shadow: 0 0 6px #22c55e, inset 1px 1px 2px rgba(255,255,255,0.4);
+        }
+        .crt-floppy {
+          width: 110px;
+          height: 12px;
+          background: #e6dac8;
+          border: 2px solid #5a4f40;
+          border-radius: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .crt-floppy-slot {
+          width: 80px;
+          height: 3px;
+          background: #333;
+          border-radius: 1px;
+          box-shadow: inset 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        .retro-keyboard {
+          background: #d4c5b3;
+          padding: 8px 12px;
+          border-radius: 4px 4px 12px 12px;
+          border: 2px solid #5a4f40;
+          box-shadow: 
+            inset -2px -2px 0px 0px rgba(0,0,0,0.15),
+            inset 2px 2px 0px 0px rgba(255,255,255,0.4),
+            4px 4px 0px 0px rgba(0,0,0,0.3);
+        }
+        .kbd-block {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          width: 100%;
+        }
+        .key-row {
+          display: flex;
+          gap: 3px;
+        }
+        .key-cap {
+          height: 12px;
+          flex: 1;
+          background: #b0a390;
+          border: 2px solid #5a4f40;
+          border-top-color: #d4c5b3;
+          border-left-color: #d4c5b3;
+          border-radius: 2px;
+          box-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+        }
+        .key-cap.spacebar {
+          flex: none;
+          width: 50%;
+        }
+        .screen-content {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        /* ── Pixel Art Computer ──────────────────────────── */
+        .retro-computer {
+          width: min(100%, 292px);
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+          filter: drop-shadow(5px 6px 0 rgba(0,0,0,0.55));
+        }
+        .pc-monitor {
+          flex: 1;
+          background: #d4c5a9;
+          border: 3px solid #5a4030;
+          box-shadow:
+            3px 3px 0 #2a1810,
+            inset 2px 2px 0 rgba(255,255,255,0.45),
+            inset -2px -2px 0 rgba(0,0,0,0.2);
+        }
+        .pc-bezel {
+          margin: 10px 10px 0 10px;
+          background: #7a6548;
+          padding: 7px;
+          border: 2px solid #4a3020;
+          box-shadow: inset 3px 3px 8px rgba(0,0,0,0.55);
+        }
+        .pc-screen {
+          background: #060e06;
+          position: relative;
+          overflow: hidden;
+          min-height: 158px;
+        }
+        .pc-tower {
+          width: 58px;
+          flex-shrink: 0;
+          background: #d4c5a9;
+          border: 3px solid #5a4030;
+          box-shadow:
+            3px 3px 0 #2a1810,
+            inset 2px 2px 0 rgba(255,255,255,0.45),
+            inset -2px -2px 0 rgba(0,0,0,0.2);
+          padding: 6px;
+          display: flex;
+          flex-direction: column;
+        }
+        .pc-keyboard {
+          background: #d4c5a9;
+          border: 3px solid #5a4030;
+          box-shadow:
+            3px 3px 0 #2a1810,
+            inset 2px 2px 0 rgba(255,255,255,0.45),
+            inset -2px -2px 0 rgba(0,0,0,0.15);
+          padding: 7px 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        /* Pixel map panel — keep or replace existing pixel-* classes */
+        .pixel-panel { display: flex; flex-direction: column; gap: 3px; }
+        .pixel-screen {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          padding: 4px;
+          border: 1px solid rgba(34,197,94,0.3);
+          background: rgba(0,0,0,0.5);
+          overflow: hidden;
+          align-items: center;
+        }
+        .pixel-row {
+          display: grid;
+          grid-template-columns: repeat(16, 4px);
+          gap: 1px;
+        }
+        .pixel-cell {
+          width: 4px;
+          height: 4px;
+          background: rgba(34,197,94,0.08);
+        }
+        .pixel-cell.on {
+          background: rgba(34,197,94,0.88);
+          animation: pixel-blink 2.4s steps(2, end) infinite;
+        }
+        .pixel-scan {
+          position: absolute;
+          left: 0; right: 0;
+          height: 8px;
+          background: linear-gradient(90deg, transparent, rgba(0,229,255,0.2), transparent);
+          opacity: 0.6;
+          animation: pixel-scan 3.6s steps(6, end) infinite;
+        }
+        @keyframes pixel-blink {
+          0%, 100% { opacity: 0.6; }
+          50%       { opacity: 1; }
+        }
+        @keyframes pixel-scan {
+          0%   { top: 8%; }
+          100% { top: 82%; }
+        }
+
+        /* Responsive */
         @media (max-width: 1024px) {
-          main > div:first-child {
-            grid-template-columns: 1fr !important;
-          }
-          main > div:first-child > div:last-child {
-            display: none !important;
-          }
+          main > div:first-child { grid-template-columns: 1fr !important; }
+          main > div:first-child > div:last-child { display: none !important; }
         }
         @media (max-width: 768px) {
-          nav {
-            padding: 16px 20px !important;
-          }
-          main {
-            padding: 32px 20px 64px !important;
-          }
-          h1 {
-            font-size: 2rem !important;
-          }
-          div[style*="grid-template-columns: repeat(3"] {
-            grid-template-columns: 1fr !important;
-          }
-          footer, div[style*="justify-content: space-between"]:last-child {
-            flex-direction: column;
-            gap: 8px;
-            text-align: center;
-          }
+          nav  { padding: 16px 20px !important; }
+          main { padding: 32px 20px 64px !important; }
+          h1   { font-size: 2rem !important; }
+          div[style*="grid-template-columns: repeat(3"] { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>

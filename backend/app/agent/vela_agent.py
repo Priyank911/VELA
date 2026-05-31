@@ -47,7 +47,6 @@ class VelaAgent:
             "gmail": ["gmail.inbox", "gmail.sent"],
             "google_calendar": ["google_calendar.events"],
             "notion": ["notion.pages"],
-            "linkedin": ["linkedin.profiles"],
         }
         tables = []
         for src in self.connected_sources:
@@ -71,13 +70,13 @@ class VelaAgent:
         )
         await asyncio.sleep(0.1)
 
-        # Emit claude thinking node
+        # Emit vela thinking node
         claude_node_id = self._next_node_id()
         await sm.emit_graph_node(
             self.conversation_id,
             {
                 "id": claude_node_id,
-                "type": "claude",
+                "type": "vela",
                 "label": "Analyzing request...",
                 "status": "running",
             },
@@ -150,12 +149,12 @@ class VelaAgent:
                 messages.append({"role": "assistant", "content": response.content})
 
                 if response.stop_reason == "end_turn":
-                    # Update claude node to complete
+                    # Update vela node to complete
                     await sm.emit_graph_node(
                         self.conversation_id,
                         {
                             "id": claude_node_id,
-                            "type": "claude",
+                            "type": "vela",
                             "label": "Analysis complete",
                             "status": "complete",
                         },
@@ -315,7 +314,7 @@ class VelaAgent:
                         self.conversation_id,
                         {
                             "id": claude_node_id,
-                            "type": "claude",
+                            "type": "vela",
                             "label": "Analysis complete",
                             "status": "complete",
                         },
@@ -441,25 +440,22 @@ class VelaAgent:
     async def _do_execute_tool(self, tool_name: str, tool_input: dict) -> Any:
         """Actually execute the tool logic."""
         if tool_name == "coral_sql":
-            return coral_executor.execute_sql(tool_input["query"])
-
-        elif tool_name == "search_jobs":
-            title_query = tool_input.get("title", "")
-            location_query = tool_input.get("location")
-
-            # 1. Query the local cache via Coral SQL first (case-insensitive)
-            sql_query = f"SELECT * FROM jobs.listings WHERE title ILIKE '%{title_query}%' LIMIT 10"
-            result = coral_executor.execute_sql(sql_query)
-
-            # 2. If local cache contains no matches, fetch live from Adzuna and update storage
+            query = tool_input["query"]
+            result = coral_executor.execute_sql(query)
+            
+            # If querying jobs and no results, try fetching live from Adzuna
             rows = result.get("rows", []) if isinstance(result, dict) else result
-            if not rows or len(rows) == 0:
-                from app.connectors.job_search import fetch_and_sync_live_jobs
-
-                await fetch_and_sync_live_jobs(title_query, location_query)
-                # Re-query from Coral
-                result = coral_executor.execute_sql(sql_query)
-
+            if "jobs.listings" in query.lower() and (not rows or len(rows) == 0):
+                import re
+                # Try to extract the title being searched for
+                match = re.search(r"title\s+ilike\s+'%([^%]+)%'", query, re.IGNORECASE)
+                if match:
+                    title_query = match.group(1)
+                    from app.connectors.job_search import fetch_and_sync_live_jobs
+                    await fetch_and_sync_live_jobs(title_query, None)
+                    # Re-query from Coral
+                    result = coral_executor.execute_sql(query)
+                    
             return result
 
         elif tool_name == "check_calendar":
@@ -635,7 +631,7 @@ class VelaAgent:
             self.conversation_id,
             {
                 "id": claude_node_id,
-                "type": "claude",
+                "type": "vela",
                 "label": "Planning job search...",
                 "status": "running",
             },
@@ -643,25 +639,18 @@ class VelaAgent:
         await asyncio.sleep(0.5)
 
         await self._mock_tool_node(
-            "search_jobs",
+            "coral_sql",
             claude_node_id,
             "jobs",
             8,
             "SELECT * FROM jobs.listings WHERE experience_level IN ('mid','senior') LIMIT 10",
-        )
-        await self._mock_tool_node(
-            "coral_sql",
-            claude_node_id,
-            "linkedin",
-            3,
-            "SELECT * FROM linkedin.profiles WHERE company IN ('Stripe','Vercel')",
         )
 
         await stream_manager.emit_graph_node(
             self.conversation_id,
             {
                 "id": claude_node_id,
-                "type": "claude",
+                "type": "vela",
                 "label": "Search complete",
                 "status": "complete",
             },
@@ -669,32 +658,43 @@ class VelaAgent:
 
         return """## TOP JOB MATCHES FOUND
 
-I searched across **jobs** and **LinkedIn** data sources. Here are your best matches:
+I queried the **jobs.listings** table via Coral SQL. Here are your best matches:
 
-### 1. **Senior Backend Engineer** -- Stripe
-- Location: San Francisco, CA (Remote OK)
-- Salary: $180,000 - $250,000
-- Stack: Python, Go, PostgreSQL, AWS
-- Match: **92% match** with your profile
-- [View Listing ->](https://stripe.com/careers)
+---
 
-### 2. **Staff Software Engineer** -- Vercel
-- Location: Remote (US)
-- Salary: $200,000 - $280,000
-- Stack: TypeScript, Next.js, Node.js, Edge Computing
-- Match: **87% match** with your profile
+### 1. Senior Backend Engineer -- Stripe
+- **Location:** San Francisco, CA (Remote OK)
+- **Salary:** $180,000 - $250,000
+- **Stack:** Python, Go, PostgreSQL, AWS
+- **Match:** 92% with your profile
+- [Apply Here ->](https://stripe.com/jobs)
 
-### 3. **Senior Full-Stack Developer** -- Notion
-- Location: New York, NY (Hybrid)
-- Salary: $170,000 - $230,000
-- Stack: React, TypeScript, PostgreSQL, Kotlin
-- Match: **85% match** with your profile
+---
 
-### 4. **Platform Engineer** -- Supabase
-- Location: Remote (Global)
-- Salary: $160,000 - $220,000
-- Stack: PostgreSQL, Go, TypeScript, Deno
-- Match: **82% match** with your profile
+### 2. Staff Software Engineer -- Vercel
+- **Location:** Remote (US)
+- **Salary:** $200,000 - $280,000
+- **Stack:** TypeScript, Next.js, Node.js, Edge Computing
+- **Match:** 87% with your profile
+- [Apply Here ->](https://vercel.com/careers)
+
+---
+
+### 3. Senior Full-Stack Developer -- Notion
+- **Location:** New York, NY (Hybrid)
+- **Salary:** $170,000 - $230,000
+- **Stack:** React, TypeScript, PostgreSQL, Kotlin
+- **Match:** 85% with your profile
+- [Apply Here ->](https://notion.so/careers)
+
+---
+
+### 4. Platform Engineer -- Supabase
+- **Location:** Remote (Global)
+- **Salary:** $160,000 - $220,000
+- **Stack:** PostgreSQL, Go, TypeScript, Deno
+- **Match:** 82% with your profile
+- [Apply Here ->](https://supabase.com/careers)
 
 ---
 
@@ -709,7 +709,7 @@ I searched across **jobs** and **LinkedIn** data sources. Here are your best mat
             self.conversation_id,
             {
                 "id": claude_node_id,
-                "type": "claude",
+                "type": "vela",
                 "label": "Analyzing resume...",
                 "status": "running",
             },
@@ -722,7 +722,7 @@ I searched across **jobs** and **LinkedIn** data sources. Here are your best mat
             self.conversation_id,
             {
                 "id": claude_node_id,
-                "type": "claude",
+                "type": "vela",
                 "label": "Analysis complete",
                 "status": "complete",
             },
@@ -774,7 +774,7 @@ Want me to help **rewrite specific sections**?
             self.conversation_id,
             {
                 "id": claude_node_id,
-                "type": "claude",
+                "type": "vela",
                 "label": "Crafting email...",
                 "status": "running",
             },
@@ -994,7 +994,7 @@ I'll keep monitoring and alert you to any new responses!
             self.conversation_id,
             {
                 "id": claude_node_id,
-                "type": "claude",
+                "type": "vela",
                 "label": "Processing...",
                 "status": "complete",
             },

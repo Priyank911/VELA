@@ -123,8 +123,29 @@ async def upload_resume(
     user_id: str, req: ResumeUploadRequest, session: AsyncSession = Depends(get_session)
 ):
     """Upload or update the user's resume text."""
-    user = await crud.update_user(session, user_id, resume_text=req.resume_text)
+    # Sanitize: strip null bytes and non-printable characters that break PostgreSQL
+    import re
+    clean_text = req.resume_text.replace('\x00', '')
+    # Remove binary PDF artifacts - if it starts with %PDF, extract readable text only
+    if clean_text.startswith('%PDF'):
+        # Extract only printable ASCII and common unicode from the PDF raw dump
+        clean_text = re.sub(r'[^\x20-\x7E\n\r\t]', '', clean_text)
+        # Remove PDF structural commands
+        clean_text = re.sub(r'\d+ \d+ obj.*?endobj', '', clean_text, flags=re.DOTALL)
+        clean_text = re.sub(r'<<.*?>>', '', clean_text, flags=re.DOTALL)
+        clean_text = re.sub(r'stream.*?endstream', '', clean_text, flags=re.DOTALL)
+        clean_text = re.sub(r'xref.*', '', clean_text, flags=re.DOTALL)
+        # Clean up whitespace
+        clean_text = re.sub(r'\n{3,}', '\n\n', clean_text)
+        clean_text = clean_text.strip()
+        if len(clean_text) < 50:
+            # PDF parsing resulted in too little text — tell user to use .txt
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400,
+                detail="PDF files cannot be parsed directly. Please copy-paste your resume text or upload a .txt file."
+            )
+    user = await crud.update_user(session, user_id, resume_text=clean_text)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"status": "uploaded", "length": len(req.resume_text)}
-
+    return {"status": "uploaded", "length": len(clean_text)}

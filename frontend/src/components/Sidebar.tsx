@@ -3,15 +3,19 @@
 import { useVelaStore } from "@/store/useVelaStore";
 import ConnectorPanel from "@/components/ConnectorPanel";
 import GraphPanel from "@/components/GraphPanel";
+import CoralPanel from "@/components/CoralPanel";
 
 export default function Sidebar() {
   const sidebarView = useVelaStore((s) => s.sidebarView);
   const setSidebarView = useVelaStore((s) => s.setSidebarView);
   const graphNodes = useVelaStore((s) => s.graphNodes);
 
+  const sqlNodeCount = graphNodes.filter((n: any) => n.data?.sql_query).length;
+
   const tabs = [
     { key: "connectors" as const, label: "SOURCES" },
     { key: "graph" as const, label: "REASONING" },
+    { key: "coral" as const, label: "CORAL SQL" },
   ];
 
   return (
@@ -72,6 +76,24 @@ export default function Sidebar() {
                   {graphNodes.length}
                 </span>
               )}
+
+              {/* SQL query count badge on CORAL tab */}
+              {tab.key === "coral" && sqlNodeCount > 0 && (
+                <span
+                  className="inline-flex items-center justify-center text-[10px] leading-none"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    background: "rgba(0,229,255,0.15)",
+                    color: "#00e5ff",
+                    border: "1px solid rgba(0,229,255,0.3)",
+                  }}
+                >
+                  {sqlNodeCount}
+                </span>
+              )}
             </button>
           );
         })}
@@ -79,7 +101,9 @@ export default function Sidebar() {
 
       {/* ── Panel Content ── */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        {sidebarView === "connectors" ? <ConnectorPanel /> : <GraphPanel />}
+        {sidebarView === "connectors" && <ConnectorPanel />}
+        {sidebarView === "graph" && <GraphPanel />}
+        {sidebarView === "coral" && <CoralPanel />}
       </div>
     </div>
   );

@@ -37,7 +37,7 @@ const STATUS_DOT: Record<string, string> = {
 const TYPE_ICON: Record<string, string> = {
   query: "\u25A0",       // ■
   tool_call: "\u25B8",   // ▸
-  claude: "\u25C6",      // ◆
+  vela: "\u25C6",        // ◆
   synthesis: "\u25CF",   // ●
   answer: "\u2713",      // ✓
   error: "\u00D7",       // ×
@@ -202,7 +202,7 @@ function VelaNode({ data }: NodeProps) {
 
 const nodeTypes = {
   query: VelaNode,
-  claude: VelaNode,
+  vela: VelaNode,
   tool_call: VelaNode,
   synthesis: VelaNode,
   answer: VelaNode,

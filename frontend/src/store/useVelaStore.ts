@@ -10,8 +10,8 @@ interface VelaState {
   // View
   currentView: "landing" | "app";
   setCurrentView: (v: "landing" | "app") => void;
-  sidebarView: "connectors" | "graph";
-  setSidebarView: (v: "connectors" | "graph") => void;
+  sidebarView: "connectors" | "graph" | "coral";
+  setSidebarView: (v: "connectors" | "graph" | "coral") => void;
 
   // Connectors
   connectors: ConnectorInfo[];

@@ -27,15 +27,13 @@ export default function AppShell() {
       >
         {/* Left: Brand + Status */}
         <div className="flex items-center gap-4">
-          <span
-            className="text-xl tracking-widest"
+          <img
+            src="/logo.png"
+            alt="VELA"
             style={{
-              color: "#ff8200",
-              fontFamily: "'VT323', monospace",
+              height: "24px",
             }}
-          >
-            VELA
-          </span>
+          />
 
           <span
             className="flex items-center gap-1.5 text-xs px-2.5 py-0.5"
